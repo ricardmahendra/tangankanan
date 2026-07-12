@@ -17,6 +17,21 @@ class OrderRepository {
     }
   }
 
+  /// Fetch active orders for a user (pending through in_progress)
+  Future<List<OrderModel>> getUserActiveOrders(String userId) async {
+    try {
+      final records = await pb.collection('orders').getList(
+        filter:
+            'user_id = "$userId" && (status = "pending" || status = "confirmed" || status = "on_the_way" || status = "arrived" || status = "in_progress")',
+        sort: '-created',
+        expand: 'partner_id,order_items(order_id)',
+      );
+      return records.items.map((r) => OrderModel.fromRecord(r)).toList();
+    } catch (e) {
+      throw Exception('Gagal memuat pesanan aktif: $e');
+    }
+  }
+
   /// Fetch all orders for a specific user (History for User App)
   Future<List<OrderModel>> getUserOrders(String userId) async {
     try {
@@ -64,7 +79,7 @@ class OrderRepository {
     try {
       final record = await pb.collection('orders').getOne(
         orderId,
-        expand: 'user_id,order_items(order_id)',
+        expand: 'user_id,partner_id,order_items(order_id)',
       );
       return OrderModel.fromRecord(record);
     } catch (e) {
@@ -101,7 +116,7 @@ class OrderRepository {
           'total_price': totalPrice,
           'platform_fee': platformFee,
           'partner_income': partnerIncome,
-          'status': 'confirmed', // Assuming mock payment success immediately
+          'status': 'pending',
           'payment_status': 'paid',
           'payment_method': paymentMethod,
         },
@@ -148,12 +163,13 @@ class OrderRepository {
       if (newStatus == 'cancelled') {
         if (cancelledBy != null) body['cancelled_by'] = cancelledBy;
         if (cancelReason != null) body['cancel_reason'] = cancelReason;
+        body['payment_status'] = 'refunded';
       }
 
       final record = await pb.collection('orders').update(
         orderId,
         body: body,
-        expand: 'user_id,order_items(order_id)',
+        expand: 'user_id,partner_id,order_items(order_id)',
       );
 
       // Handle balance updates locally if backend hook isn't active

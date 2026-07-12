@@ -39,6 +39,24 @@ class _MitraJobTabState extends State<MitraJobTab> {
     }
     _loadJobs();
     _startCountdownTimer();
+    _setupRealtimeSubscription();
+  }
+
+  void _setupRealtimeSubscription() {
+    _orderRepo.subscribeToOrders(_partnerId, (e) {
+      if (mounted) {
+        _loadJobs();
+      }
+    });
+  }
+
+  void _initCountdowns() {
+    for (final order in _incomingOrders) {
+      final elapsedSecs =
+          DateTime.now().difference(order.created ?? DateTime.now()).inSeconds;
+      final remainingSecs = (10 * 60) - elapsedSecs;
+      _orderCountdowns[order.id] = remainingSecs > 0 ? remainingSecs : 0;
+    }
   }
 
   @override
@@ -51,10 +69,10 @@ class _MitraJobTabState extends State<MitraJobTab> {
   Future<void> _loadJobs() async {
     setState(() => _isLoading = true);
     try {
-      // Load real database data if possible
       _incomingOrders = await _orderRepo.getIncomingOrders(_partnerId);
       _activeOrders = await _orderRepo.getActiveOrders(_partnerId);
       _historyOrders = await _orderRepo.getJobHistory(_partnerId);
+      _initCountdowns();
     } catch (e) {
       print('Gagal memuat pesanan dari repo, menyetel fallback mock data: $e');
       _setMockData();
@@ -85,12 +103,8 @@ class _MitraJobTabState extends State<MitraJobTab> {
       ),
     ];
 
-    // Initialize countdowns (simulating remaining seconds of 10-minute timer)
-    for (var order in _incomingOrders) {
-      final elapsedSecs = DateTime.now().difference(order.created ?? DateTime.now()).inSeconds;
-      final remainingSecs = (10 * 60) - elapsedSecs;
-      _orderCountdowns[order.id] = remainingSecs > 0 ? remainingSecs : 0;
-    }
+    // Initialize countdowns (10-minute response window)
+    _initCountdowns();
 
     // Mock Active Orders (status = confirmed/on_the_way/arrived/in_progress)
     _activeOrders = [
@@ -182,8 +196,16 @@ class _MitraJobTabState extends State<MitraJobTab> {
   }
 
   Future<void> _handleAutoCancel(String orderId) async {
+    if (_orderCountdowns[orderId] == -2) return;
+    _orderCountdowns[orderId] = -2;
+
     try {
-      await _orderRepo.updateOrderStatus(orderId, 'cancelled', cancelledBy: 'admin', cancelReason: 'Batas waktu respon habis (10 menit).');
+      await _orderRepo.updateOrderStatus(
+        orderId,
+        'cancelled',
+        cancelledBy: 'admin',
+        cancelReason: 'Batas waktu respon habis (10 menit).',
+      );
     } catch (e) {
       print('Gagal membatalkan pesanan kedaluwarsa: $e');
     }

@@ -76,7 +76,12 @@ class _OrderConfirmPageState extends State<OrderConfirmPage> {
       );
 
       if (mounted) {
-        // Clear back stack and go to tracking
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pembayaran berhasil! Menunggu konfirmasi mitra.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
         context.go('/order/tracking/${order.id}');
       }
     } catch (e) {

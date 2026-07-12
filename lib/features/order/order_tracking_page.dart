@@ -165,6 +165,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
     }
 
     final isCancelled = _order!.status == 'cancelled';
+    final isPending = _order!.status == 'pending';
     final currentStatusIndex = _statusList.indexOf(_order!.status);
 
     return SingleChildScrollView(
@@ -204,6 +205,44 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
           ),
           const SizedBox(height: 24),
 
+          if (isPending)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.warning),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.hourglass_top, color: AppColors.warning, size: 40),
+                  SizedBox(height: 8),
+                  Text(
+                    'Menunggu Konfirmasi Mitra',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.warning,
+                      fontSize: 16,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Mitra memiliki waktu 10 menit untuk menerima pesanan Anda. '
+                    'Halaman ini akan diperbarui otomatis setelah mitra merespons.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // Stepper
           if (!isCancelled)
             Container(
@@ -216,7 +255,8 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
               child: Column(
                 children: List.generate(_statusList.length, (index) {
                   final status = _statusList[index];
-                  final isActive = index <= currentStatusIndex;
+                  final isCompleted = currentStatusIndex >= 0 && index < currentStatusIndex;
+                  final isCurrent = index == currentStatusIndex;
                   final isLast = index == _statusList.length - 1;
 
                   return Row(
@@ -229,17 +269,27 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
                             height: 24,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: isActive ? AppColors.primary : AppColors.border,
+                              color: isCompleted || isCurrent
+                                  ? AppColors.primary
+                                  : AppColors.border,
                             ),
-                            child: isActive
+                            child: isCompleted
                                 ? const Icon(Icons.check, size: 14, color: Colors.white)
-                                : null,
+                                : isCurrent
+                                    ? Container(
+                                        margin: const EdgeInsets.all(6),
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : null,
                           ),
                           if (!isLast)
                             Container(
                               width: 2,
                               height: 30,
-                              color: isActive && index < currentStatusIndex
+                              color: isCompleted
                                   ? AppColors.primary
                                   : AppColors.border,
                             ),
@@ -253,8 +303,12 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
                             _statusDisplay[status]!,
                             style: TextStyle(
                               fontFamily: 'Poppins',
-                              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                              color: isActive ? AppColors.textPrimary : AppColors.textSecondary,
+                              fontWeight: isCurrent || isCompleted
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              color: isCurrent || isCompleted
+                                  ? AppColors.textPrimary
+                                  : AppColors.textSecondary,
                             ),
                           ),
                         ),
@@ -337,7 +391,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
                       ],
                     ),
                   ),
-                  if (!isCancelled)
+                  if (!isCancelled && !isPending)
                     IconButton(
                       icon: const Icon(Icons.chat, color: AppColors.primary),
                       onPressed: () {
