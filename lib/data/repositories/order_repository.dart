@@ -58,6 +58,61 @@ class OrderRepository {
     }
   }
 
+  /// Create a new order and its order items
+  Future<OrderModel> createOrder({
+    required String orderCode,
+    required String userId,
+    required String partnerId,
+    required String categoryId,
+    required String address,
+    required DateTime scheduledAt,
+    required String notes,
+    required int totalPrice,
+    required int platformFee,
+    required int partnerIncome,
+    required String paymentMethod,
+    required List<Map<String, dynamic>> itemsData,
+  }) async {
+    try {
+      // 1. Create Order
+      final orderRecord = await pb.collection('orders').create(
+        body: {
+          'order_code': orderCode,
+          'user_id': userId,
+          'partner_id': partnerId,
+          'category_id': categoryId,
+          'address': address,
+          'scheduled_at': scheduledAt.toIso8601String(),
+          'notes': notes,
+          'total_price': totalPrice,
+          'platform_fee': platformFee,
+          'partner_income': partnerIncome,
+          'status': 'confirmed', // Assuming mock payment success immediately
+          'payment_status': 'paid',
+          'payment_method': paymentMethod,
+        },
+      );
+
+      // 2. Create Order Items
+      final orderId = orderRecord.id;
+      for (final item in itemsData) {
+        await pb.collection('order_items').create(body: {
+          'order_id': orderId,
+          'subcategory_id': item['subcategory_id'],
+          'name': item['name'],
+          'price': item['price'],
+          'quantity': item['quantity'],
+          'subtotal': item['subtotal'],
+        });
+      }
+
+      // 3. Return full order with expands
+      return getOrderDetail(orderId);
+    } catch (e) {
+      throw Exception('Gagal membuat pesanan: $e');
+    }
+  }
+
   /// Update order status (with optional cancel fields)
   /// If completing the order, we update the status and record completion time.
   Future<OrderModel> updateOrderStatus(

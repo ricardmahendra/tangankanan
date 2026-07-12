@@ -29,7 +29,7 @@ TanganKanan adalah aplikasi mobile on-demand berbasis jasa rumah tangga yang men
 | Nafisah Rizqy Aulia | 231240001403 | UI/UX + Admin Panel |
 
 ### 1.5 Repository
-- **GitHub:** https://github.com/ricardmahendra/tangan_kanan
+- **GitHub:** https://github.com/ricardmahendra/tangankanan
 - **Backend:** PocketBase (self-hosted)
 
 ---

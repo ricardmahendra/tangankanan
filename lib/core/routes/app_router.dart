@@ -8,6 +8,13 @@ import '../../features/auth/register/register_page.dart';
 import '../../features/mitra/mitra_page.dart';
 import '../../features/mitra/mitra_job_page.dart';
 import '../../features/mitra/tabs/mitra_finance_tab.dart';
+import '../../features/order/subcategory_page.dart';
+import '../../features/order/order_detail_page.dart';
+import '../../features/order/partner_select_page.dart';
+import '../../features/order/order_confirm_page.dart';
+import '../../features/order/order_tracking_page.dart';
+import '../../data/models/order_flow_data.dart';
+import '../../data/models/category_model.dart';
 
 // Auth State Notifier for Router
 // This allows go_router to re-evaluate the redirect logic whenever
@@ -89,23 +96,39 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/order/confirm', // Placed before /order/:categoryId to avoid conflict
-      builder: (context, state) => const PlaceholderPage('OrderConfirmPage'),
+      builder: (context, state) {
+        final flowData = state.extra as OrderFlowData;
+        return OrderConfirmPage(flowData: flowData);
+      },
     ),
     GoRoute(
       path: '/order/:categoryId',
-      builder: (context, state) => PlaceholderPage('SubcategoryPage ${state.pathParameters['categoryId']}'),
+      builder: (context, state) {
+        final categoryId = state.pathParameters['categoryId']!;
+        final category = state.extra as CategoryModel?;
+        return SubcategoryPage(categoryId: categoryId, category: category);
+      },
     ),
     GoRoute(
       path: '/order/:categoryId/detail',
-      builder: (context, state) => const PlaceholderPage('OrderDetailPage'),
+      builder: (context, state) {
+        final flowData = state.extra as OrderFlowData;
+        return OrderDetailPage(flowData: flowData);
+      },
     ),
     GoRoute(
       path: '/order/:categoryId/partners',
-      builder: (context, state) => const PlaceholderPage('PartnerSelectPage'),
+      builder: (context, state) {
+        final flowData = state.extra as OrderFlowData;
+        return PartnerSelectPage(flowData: flowData);
+      },
     ),
     GoRoute(
       path: '/order/tracking/:orderId',
-      builder: (context, state) => PlaceholderPage('OrderTrackingPage ${state.pathParameters['orderId']}'),
+      builder: (context, state) {
+        final orderId = state.pathParameters['orderId']!;
+        return OrderTrackingPage(orderId: orderId);
+      },
     ),
     GoRoute(
       path: '/order/review/:orderId',
