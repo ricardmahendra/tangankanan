@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:midtrans_sdk/midtrans_sdk.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/pocketbase/pb.dart';
 import '../../data/models/order_flow_data.dart';
 import '../../data/repositories/order_repository.dart';
+import '../../data/repositories/payment_repository.dart';
 import 'package:uuid/uuid.dart';
 
 class OrderConfirmPage extends StatefulWidget {
@@ -21,11 +23,28 @@ class OrderConfirmPage extends StatefulWidget {
 
 class _OrderConfirmPageState extends State<OrderConfirmPage> {
   final OrderRepository _repo = OrderRepository();
+  final PaymentRepository _paymentRepo = PaymentRepository();
   bool _isProcessing = false;
   
   // Selected payment method (defaulting to QRIS)
   String _paymentMethod = 'QRIS';
   final List<String> _paymentOptions = ['QRIS', 'Transfer Bank', 'E-Wallet'];
+
+  @override
+  void initState() {
+    super.initState();
+    _initMidtrans();
+  }
+
+  void _initMidtrans() {
+    // Initialize Midtrans SDK
+    // In production, use your actual client key from Midtrans dashboard
+    MidtransSDK.init(
+      clientKey: 'SB-Mid-client-xxx', // Replace with your actual client key
+      merchantBaseUrl: 'https://your-backend.com', // Your backend URL
+      enableLog: true,
+    );
+  }
 
   Future<void> _processPaymentAndOrder() async {
     setState(() {
@@ -40,6 +59,7 @@ class _OrderConfirmPageState extends State<OrderConfirmPage> {
       final totalPrice = widget.flowData.totalPrice;
       final platformFee = (totalPrice * 0.12).round();
       final partnerIncome = (totalPrice * 0.88).round();
+      final grandTotal = totalPrice + platformFee;
       
       // Generate unique order code
       final shortUuid = const Uuid().v4().substring(0, 6).toUpperCase();
@@ -56,33 +76,61 @@ class _OrderConfirmPageState extends State<OrderConfirmPage> {
         };
       }).toList();
 
-      // MOCK PAYMENT DELAY
-      await Future.delayed(const Duration(seconds: 2));
-
-      // Create Order
-      final order = await _repo.createOrder(
-        orderCode: orderCode,
-        userId: userRecord.id,
-        partnerId: widget.flowData.selectedPartner!.id,
-        categoryId: widget.flowData.category.id,
-        address: widget.flowData.address,
-        scheduledAt: widget.flowData.scheduledAt!,
-        notes: widget.flowData.notes,
-        totalPrice: totalPrice,
-        platformFee: platformFee,
-        partnerIncome: partnerIncome,
-        paymentMethod: _paymentMethod,
-        itemsData: itemsData,
+      // Get Snap Token from Midtrans
+      final snapToken = await _paymentRepo.getSnapToken(
+        orderId: orderCode,
+        amount: grandTotal,
+        customerName: userRecord.getStringValue('name'),
+        customerEmail: userRecord.getStringValue('email'),
+        customerPhone: userRecord.getStringValue('phone'),
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pembayaran berhasil! Menunggu konfirmasi mitra.'),
-            backgroundColor: AppColors.success,
-          ),
+      // Open Midtrans Snap UI
+      final result = await MidtransSDK.startPaymentUi(
+        snapToken: snapToken,
+        skipCustomerDetails: true,
+      );
+
+      if (result.transactionStatus == 'settlement' || 
+          result.transactionStatus == 'capture') {
+        // Payment successful, create order
+        final order = await _repo.createOrder(
+          orderCode: orderCode,
+          userId: userRecord.id,
+          partnerId: widget.flowData.selectedPartner!.id,
+          categoryId: widget.flowData.category.id,
+          address: widget.flowData.address,
+          scheduledAt: widget.flowData.scheduledAt!,
+          notes: widget.flowData.notes,
+          totalPrice: totalPrice,
+          platformFee: platformFee,
+          partnerIncome: partnerIncome,
+          paymentMethod: _paymentMethod,
+          itemsData: itemsData,
         );
-        context.go('/order/tracking/${order.id}');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Pembayaran berhasil! Menunggu konfirmasi mitra.'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          context.go('/order/tracking/${order.id}');
+        }
+      } else {
+        // Payment failed or cancelled
+        if (mounted) {
+          setState(() {
+            _isProcessing = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Pembayaran ${result.transactionStatus ?? 'gagal'}. Silakan coba lagi.'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -91,7 +139,7 @@ class _OrderConfirmPageState extends State<OrderConfirmPage> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text('Gagal: ${e.toString()}'),
             backgroundColor: AppColors.danger,
           ),
         );

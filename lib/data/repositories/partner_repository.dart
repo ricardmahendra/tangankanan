@@ -45,6 +45,7 @@ class PartnerRepository {
     required List<int> ktpPhotoBytes,
     required String selfiePhotoName,
     required List<int> selfiePhotoBytes,
+    required List<String> skillIds,
   }) async {
     try {
       final body = {
@@ -76,6 +77,14 @@ class PartnerRepository {
           ),
         ],
       );
+
+      // Create partner_skills records
+      for (final skillId in skillIds) {
+        await pb.collection('partner_skills').create(body: {
+          'partner_id': record.id,
+          'subcategory_id': skillId,
+        });
+      }
 
       return PartnerModel.fromRecord(record);
     } catch (e) {

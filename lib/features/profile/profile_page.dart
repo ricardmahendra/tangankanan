@@ -115,20 +115,22 @@ class _ProfilePageState extends State<ProfilePage> {
             icon: Icons.person_outline,
             title: 'Edit Profil',
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Fitur edit profil belum tersedia')),
-              );
+              context.push('/profile/edit');
             },
           ),
           _buildMenuTile(
             icon: Icons.location_on_outlined,
             title: 'Alamat Tersimpan',
-            onTap: () {},
+            onTap: () {
+              context.push('/profile/addresses');
+            },
           ),
           _buildMenuTile(
             icon: Icons.help_outline,
             title: 'Bantuan & Dukungan',
-            onTap: () {},
+            onTap: () {
+              context.push('/profile/help');
+            },
           ),
           
           const SizedBox(height: 32),

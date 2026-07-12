@@ -84,4 +84,38 @@ class AuthRepository {
     }
     return null;
   }
+
+  /// Update user profile
+  Future<void> updateProfile({
+    required Map<String, dynamic> body,
+    List<int>? avatarBytes,
+    String? avatarName,
+  }) async {
+    try {
+      final record = pb.authStore.record;
+      if (record == null) {
+        throw Exception('Tidak ada pengguna yang login');
+      }
+
+      if (avatarBytes != null && avatarName != null) {
+        // Update with avatar
+        await pb.collection('users').update(
+          record.id,
+          body: body,
+          files: [
+            http.MultipartFile.fromBytes(
+              'avatar',
+              avatarBytes,
+              filename: avatarName,
+            ),
+          ],
+        );
+      } else {
+        // Update without avatar
+        await pb.collection('users').update(record.id, body: body);
+      }
+    } catch (e) {
+      throw Exception('Gagal memperbarui profil: $e');
+    }
+  }
 }

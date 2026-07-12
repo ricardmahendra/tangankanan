@@ -4,8 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/pocketbase/pb.dart';
+import '../../data/models/category_model.dart';
+import '../../data/models/subcategory_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/partner_repository.dart';
+import '../../data/repositories/category_repository.dart';
+import '../../data/repositories/subcategory_repository.dart';
 
 class MitraRegistrationPage extends StatefulWidget {
   const MitraRegistrationPage({super.key});
@@ -17,6 +21,8 @@ class MitraRegistrationPage extends StatefulWidget {
 class _MitraRegistrationPageState extends State<MitraRegistrationPage> {
   final _formKey = GlobalKey<FormState>();
   final _partnerRepo = PartnerRepository();
+  final _categoryRepo = CategoryRepository();
+  final _subcategoryRepo = SubcategoryRepository();
   final ImagePicker _picker = ImagePicker();
 
   UserModel? _user;
@@ -32,6 +38,12 @@ class _MitraRegistrationPageState extends State<MitraRegistrationPage> {
 
   bool _isAgreed = false;
   bool _isLoading = false;
+  bool _isLoadingSkills = true;
+  
+  // Skills selection
+  List<CategoryModel> _categories = [];
+  Map<String, List<SubcategoryModel>> _subcategoriesByCategory = {};
+  Set<String> _selectedSubcategoryIds = {};
 
   @override
   void initState() {
@@ -42,6 +54,35 @@ class _MitraRegistrationPageState extends State<MitraRegistrationPage> {
       // Pre-fill if NIK exists
       if (_user!.nik.isNotEmpty) {
         _nikController.text = _user!.nik;
+      }
+    }
+    _loadSkills();
+  }
+
+  Future<void> _loadSkills() async {
+    try {
+      final categories = await _categoryRepo.getCategories();
+      final Map<String, List<SubcategoryModel>> subcategoriesMap = {};
+      
+      for (final category in categories) {
+        final subcategories = await _subcategoryRepo.getSubcategories(category.id);
+        if (subcategories.isNotEmpty) {
+          subcategoriesMap[category.id] = subcategories;
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _categories = categories;
+          _subcategoriesByCategory = subcategoriesMap;
+          _isLoadingSkills = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingSkills = false;
+        });
       }
     }
   }
@@ -81,6 +122,12 @@ class _MitraRegistrationPageState extends State<MitraRegistrationPage> {
       );
       return;
     }
+    if (_selectedSubcategoryIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pilih minimal satu keahlian'), backgroundColor: AppColors.danger),
+      );
+      return;
+    }
     if (!_isAgreed) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Anda harus menyetujui syarat & ketentuan'), backgroundColor: AppColors.danger),
@@ -91,15 +138,6 @@ class _MitraRegistrationPageState extends State<MitraRegistrationPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Create partner record using the same user credentials, but technically PocketBase will generate a new auth record
-      // For MVP, we pass dummy password since they are already authenticated as user.
-      // Wait, PocketBase requires password/passwordConfirm to create a new Auth record.
-      // A better way would be using a cloud function to sync, but since we are client-side, we must provide a password.
-      // We will ask them to set a Mitra password.
-      
-      // Let's just use a dummy default password for MVP or prompt them.
-      // To keep it simple, let's use a dummy password 'mitra123456'.
-      // They can login as partner using their phone/email and 'mitra123456'.
       final defaultMitraPassword = 'mitra123456';
 
       await _partnerRepo.registerPartner(
@@ -113,6 +151,7 @@ class _MitraRegistrationPageState extends State<MitraRegistrationPage> {
         ktpPhotoBytes: _ktpBytes!,
         selfiePhotoName: _selfieName!,
         selfiePhotoBytes: _selfieBytes!,
+        skillIds: _selectedSubcategoryIds.toList(),
       );
 
       if (mounted) {
@@ -242,23 +281,159 @@ class _MitraRegistrationPageState extends State<MitraRegistrationPage> {
 
                     const SizedBox(height: 24),
 
-                    // Agreement
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: _isAgreed,
-                          activeColor: AppColors.primary,
-                          onChanged: (val) {
-                            setState(() => _isAgreed = val ?? false);
-                          },
-                        ),
-                        const Expanded(
-                          child: Text(
-                            'Saya menyetujui syarat & ketentuan serta perjanjian kerja Mitra TanganKanan.',
-                            style: TextStyle(fontSize: 12),
+                    // Skills Selection
+                    const Text(
+                      'Pilih Keahlian',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Pilih layanan yang bisa Anda kerjakan (minimal 1)',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    if (_isLoadingSkills)
+                      const Center(child: CircularProgressIndicator())
+                    else if (_subcategoriesByCategory.isEmpty)
+                      const Text('Tidak ada keahlian tersedia')
+                    else
+                      ..._categories.map((category) {
+                        final subcategories = _subcategoriesByCategory[category.id];
+                        if (subcategories == null || subcategories.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryLight,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                category.name,
+                                style: const TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: subcategories.map((sub) {
+                                final isSelected = _selectedSubcategoryIds.contains(sub.id);
+                                return FilterChip(
+                                  label: Text(
+                                    sub.name,
+                                    style: TextStyle(
+                                      fontFamily: 'Poppins',
+                                      fontSize: 13,
+                                      color: isSelected ? Colors.white : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  selected: isSelected,
+                                  selectedColor: AppColors.primary,
+                                  checkmarkColor: Colors.white,
+                                  onSelected: (selected) {
+                                    setState(() {
+                                      if (selected) {
+                                        _selectedSubcategoryIds.add(sub.id);
+                                      } else {
+                                        _selectedSubcategoryIds.remove(sub.id);
+                                      }
+                                    });
+                                  },
+                                  backgroundColor: Colors.white,
+                                  side: BorderSide(color: AppColors.border),
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        );
+                      }).toList(),
+
+                    const SizedBox(height: 24),
+
+                    // Work Agreement
+                    const Text(
+                      'Perjanjian Kerja Mitra',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Syarat & Ketentuan:',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 8),
+                          const Text(
+                            '1. Mitra wajib merespon pesanan dalam waktu maksimal 10 menit.\n'
+                            '2. Mitra wajib tiba di lokasi dalam toleransi ±15 menit dari jadwal.\n'
+                            '3. Mitra wajib menyelesaikan pekerjaan sesuai standar kualitas.\n'
+                            '4. Mitra akan menerima 88% dari total harga layanan, 12% untuk platform.\n'
+                            '5. Mitra dapat melakukan penarikan saldo minimal Rp 50.000.\n'
+                            '6. Mitra yang mendapatkan rating rendah (< 3.0) dapat di-suspend.\n'
+                            '7. Mitra wajib menjaga sikap profesional terhadap pengguna.\n'
+                            '8. Pelanggaran berat dapat mengakibatkan penghapusan akun mitra.',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 12,
+                              height: 1.5,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: _isAgreed,
+                                activeColor: AppColors.primary,
+                                onChanged: (val) {
+                                  setState(() => _isAgreed = val ?? false);
+                                },
+                              ),
+                              const Expanded(
+                                child: Text(
+                                  'Saya telah membaca dan menyetujui seluruh syarat & ketentuan di atas.',
+                                  style: TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
 
                     const SizedBox(height: 32),

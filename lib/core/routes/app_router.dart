@@ -15,6 +15,10 @@ import '../../features/order/order_confirm_page.dart';
 import '../../features/order/order_tracking_page.dart';
 import '../../features/order/order_review_page.dart';
 import '../../features/profile/mitra_registration_page.dart';
+import '../../features/profile/edit_profile_page.dart';
+import '../../features/profile/saved_address_page.dart';
+import '../../features/profile/help_support_page.dart';
+import '../../features/admin/admin_page.dart';
 import '../../features/chat/chat_page.dart';
 import '../../features/history/history_page.dart';
 import '../../data/models/order_flow_data.dart';
@@ -158,7 +162,19 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/profile',
-      builder: (context, state) => const PlaceholderPage('ProfilePage'),
+      builder: (context, state) => const ProfilePage(),
+    ),
+    GoRoute(
+      path: '/profile/edit',
+      builder: (context, state) => const EditProfilePage(),
+    ),
+    GoRoute(
+      path: '/profile/addresses',
+      builder: (context, state) => const SavedAddressPage(),
+    ),
+    GoRoute(
+      path: '/profile/help',
+      builder: (context, state) => const HelpSupportPage(),
     ),
     GoRoute(
       path: '/mitra',
@@ -174,15 +190,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/admin',
-      builder: (context, state) => const PlaceholderPage('AdminPage'),
-    ),
-    GoRoute(
-      path: '/admin/mitra',
-      builder: (context, state) => const PlaceholderPage('AdminMitraVerifyPage'),
-    ),
-    GoRoute(
-      path: '/admin/withdraw',
-      builder: (context, state) => const PlaceholderPage('AdminWithdrawPage'),
+      builder: (context, state) => const AdminPage(),
     ),
   ],
 );

@@ -221,4 +221,19 @@ class OrderRepository {
       print('Gagal unsubscribe realtime orders: $e');
     }
   }
+
+  /// Get recent orders for admin dashboard
+  Future<List<OrderModel>> getRecentOrders(int limit) async {
+    try {
+      final records = await pb.collection('orders').getList(
+        page: 1,
+        perPage: limit,
+        sort: '-created',
+        expand: 'user_id,partner_id,order_items(order_id)',
+      );
+      return records.items.map((r) => OrderModel.fromRecord(r)).toList();
+    } catch (e) {
+      throw Exception('Gagal memuat pesanan terbaru: $e');
+    }
+  }
 }
