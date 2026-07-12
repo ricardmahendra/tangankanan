@@ -5,6 +5,9 @@ import '../pocketbase/pb.dart';
 import '../../features/main/main_page.dart';
 import '../../features/auth/login/login_page.dart';
 import '../../features/auth/register/register_page.dart';
+import '../../features/mitra/mitra_page.dart';
+import '../../features/mitra/mitra_job_page.dart';
+import '../../features/mitra/tabs/mitra_finance_tab.dart';
 
 // Auth State Notifier for Router
 // This allows go_router to re-evaluate the redirect logic whenever
@@ -39,13 +42,13 @@ final GoRouter appRouter = GoRouter(
       String role = 'user';
 
       if (isPocketBaseInitialized) {
-        final model = pb.authStore.model;
+        final record = pb.authStore.record;
 
-        if (model is RecordModel) {
-          if (model.collectionName == '_superusers') {
+        if (record is RecordModel) {
+          if (record.collectionName == '_superusers') {
             role = 'admin';
           } else {
-            role = model.getStringValue('role');
+            role = record.getStringValue('role');
             if (role.isEmpty) role = 'user';
           }
         }
@@ -122,15 +125,15 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/mitra',
-      builder: (context, state) => const PlaceholderPage('MitraPage'),
+      builder: (context, state) => const MitraPage(),
     ),
     GoRoute(
       path: '/mitra/job/:orderId',
-      builder: (context, state) => PlaceholderPage('MitraJobPage ${state.pathParameters['orderId']}'),
+      builder: (context, state) => MitraJobPage(orderId: state.pathParameters['orderId'] ?? ''),
     ),
     GoRoute(
       path: '/mitra/finance',
-      builder: (context, state) => const PlaceholderPage('MitraFinancePage'),
+      builder: (context, state) => const Scaffold(body: MitraFinanceTab()),
     ),
     GoRoute(
       path: '/admin',

@@ -2,17 +2,26 @@ import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 import '../../core/pocketbase/pb.dart';
 import '../models/user_model.dart';
+import '../models/partner_model.dart';
 
 class AuthRepository {
   /// Login via Email or Phone with Password
-  Future<UserModel> login(String identity, String password) async {
+  /// Supports both user and partner collections.
+  Future<dynamic> login(String identity, String password) async {
     try {
+      // First try users collection
       final authRecord = await pb.collection('users').authWithPassword(identity, password);
-      return UserModel.fromRecord(authRecord.record!);
-    } on ClientException catch (e) {
-      throw Exception('Gagal login. Periksa kembali kredensial Anda. (${e.statusCode})');
-    } catch (e) {
-      throw Exception('Terjadi kesalahan: $e');
+      return UserModel.fromRecord(authRecord.record);
+    } catch (_) {
+      try {
+        // If users fails, try partners collection
+        final authRecord = await pb.collection('partners').authWithPassword(identity, password);
+        return PartnerModel.fromRecord(authRecord.record);
+      } on ClientException catch (e) {
+        throw Exception('Gagal login. Periksa kembali kredensial Anda. (${e.statusCode})');
+      } catch (e) {
+        throw Exception('Terjadi kesalahan: $e');
+      }
     }
   }
 
@@ -69,7 +78,7 @@ class AuthRepository {
 
   /// Get current user profile from local store
   UserModel? getCurrentUser() {
-    final record = pb.authStore.model;
+    final record = pb.authStore.record;
     if (record is RecordModel) {
       return UserModel.fromRecord(record);
     }
