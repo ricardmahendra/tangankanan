@@ -12,13 +12,15 @@ class AuthRepository {
       // First try users collection
       final authRecord = await pb.collection('users').authWithPassword(identity, password);
       return UserModel.fromRecord(authRecord.record);
-    } catch (_) {
+    } catch (e) {
+      // Log error untuk debugging
+      print('Users collection error: $e');
       try {
         // If users fails, try partners collection
         final authRecord = await pb.collection('partners').authWithPassword(identity, password);
         return PartnerModel.fromRecord(authRecord.record);
       } on ClientException catch (e) {
-        throw Exception('Gagal login. Periksa kembali kredensial Anda. (${e.statusCode})');
+        throw Exception('Gagal login. Periksa kembali kredensial Anda.\n\nError: ${e.statusCode} - ${e.response}');
       } catch (e) {
         throw Exception('Terjadi kesalahan: $e');
       }
