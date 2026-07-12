@@ -13,6 +13,8 @@ import '../../features/order/order_detail_page.dart';
 import '../../features/order/partner_select_page.dart';
 import '../../features/order/order_confirm_page.dart';
 import '../../features/order/order_tracking_page.dart';
+import '../../features/profile/mitra_registration_page.dart';
+import '../../features/chat/chat_page.dart';
 import '../../data/models/order_flow_data.dart';
 import '../../data/models/category_model.dart';
 
@@ -135,8 +137,15 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => PlaceholderPage('OrderReviewPage ${state.pathParameters['orderId']}'),
     ),
     GoRoute(
+      path: '/profile/register-mitra',
+      builder: (context, state) => const MitraRegistrationPage(),
+    ),
+    GoRoute(
       path: '/chat/:orderId',
-      builder: (context, state) => PlaceholderPage('ChatPage ${state.pathParameters['orderId']}'),
+      builder: (context, state) {
+        final orderId = state.pathParameters['orderId']!;
+        return ChatPage(orderId: orderId);
+      },
     ),
     GoRoute(
       path: '/history',

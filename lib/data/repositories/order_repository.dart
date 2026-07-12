@@ -17,6 +17,20 @@ class OrderRepository {
     }
   }
 
+  /// Fetch all orders for a specific user (History for User App)
+  Future<List<OrderModel>> getUserOrders(String userId) async {
+    try {
+      final records = await pb.collection('orders').getList(
+        filter: 'user_id = "$userId"',
+        sort: '-created',
+        expand: 'partner_id,order_items(order_id)',
+      );
+      return records.items.map((r) => OrderModel.fromRecord(r)).toList();
+    } catch (e) {
+      throw Exception('Gagal memuat riwayat pesanan pengguna: $e');
+    }
+  }
+
   /// Fetch active jobs for a partner (status: confirmed, on_the_way, arrived, in_progress)
   Future<List<OrderModel>> getActiveOrders(String partnerId) async {
     try {

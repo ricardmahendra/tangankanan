@@ -1,4 +1,5 @@
 import 'package:pocketbase/pocketbase.dart';
+import 'package:http/http.dart' as http;
 import '../../core/pocketbase/pb.dart';
 import '../models/partner_model.dart';
 
@@ -10,6 +11,75 @@ class PartnerRepository {
       return PartnerModel.fromRecord(record);
     } catch (e) {
       throw Exception('Gagal memuat profil mitra: $e');
+    }
+  }
+
+  /// Check if a user is already registered as a partner (via NIK or phone)
+  Future<PartnerModel?> checkPartnerExists(String nik) async {
+    try {
+      final records = await pb.collection('partners').getList(
+        page: 1,
+        perPage: 1,
+        filter: 'nik = "$nik"',
+      );
+      
+      if (records.items.isNotEmpty) {
+        return PartnerModel.fromRecord(records.items.first);
+      }
+      return null;
+    } catch (e) {
+      // If error occurs, assume not registered to avoid blocking
+      return null;
+    }
+  }
+
+  /// Register a user as a new Partner
+  Future<PartnerModel> registerPartner({
+    required String name,
+    required String phone,
+    required String email,
+    required String password, // We will use the same password as the user account
+    required String nik,
+    required String bio,
+    required String ktpPhotoName,
+    required List<int> ktpPhotoBytes,
+    required String selfiePhotoName,
+    required List<int> selfiePhotoBytes,
+  }) async {
+    try {
+      final body = {
+        'name': name,
+        'phone': phone,
+        'email': email,
+        'password': password,
+        'passwordConfirm': password,
+        'nik': nik,
+        'bio': bio,
+        'is_online': false,
+        'is_verified': false,
+        'is_active': true,
+        'role': 'mitra',
+      };
+
+      final record = await pb.collection('partners').create(
+        body: body,
+        files: [
+          http.MultipartFile.fromBytes(
+            'ktp_photo',
+            ktpPhotoBytes,
+            filename: ktpPhotoName,
+          ),
+          http.MultipartFile.fromBytes(
+            'selfie_photo',
+            selfiePhotoBytes,
+            filename: selfiePhotoName,
+          ),
+        ],
+      );
+
+      return PartnerModel.fromRecord(record);
+    } catch (e) {
+      throw Exception('Gagal mendaftar sebagai mitra: $e');
     }
   }
 
