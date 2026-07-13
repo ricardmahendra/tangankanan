@@ -89,6 +89,7 @@ class _MitraFinanceTabState extends State<MitraFinanceTab> {
         bankName: 'BCA',
         bankAccount: '1234567890',
         status: 'transferred',
+        requestedAt: DateTime.now().subtract(const Duration(days: 2, hours: 4)),
         transferredAt: DateTime.now().subtract(const Duration(days: 2)),
         created: DateTime.now().subtract(const Duration(days: 2, hours: 4)),
       ),
@@ -99,6 +100,7 @@ class _MitraFinanceTabState extends State<MitraFinanceTab> {
         bankName: 'BCA',
         bankAccount: '1234567890',
         status: 'pending',
+        requestedAt: DateTime.now().subtract(const Duration(hours: 3)),
         created: DateTime.now().subtract(const Duration(hours: 3)),
       )
     ];
@@ -146,6 +148,7 @@ class _MitraFinanceTabState extends State<MitraFinanceTab> {
         bankName: bankName,
         bankAccount: bankAccount,
         status: 'pending',
+        requestedAt: DateTime.now(),
         created: DateTime.now(),
       );
 

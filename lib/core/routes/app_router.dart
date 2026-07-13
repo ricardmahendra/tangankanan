@@ -23,6 +23,9 @@ import '../../features/chat/chat_page.dart';
 import '../../features/history/history_page.dart';
 import '../../data/models/order_flow_data.dart';
 import '../../data/models/category_model.dart';
+import '../../features/admin/admin_page.dart';
+import '../../features/admin/admin_mitra_verify_page.dart';
+import '../../features/admin/admin_withdraw_page.dart';
 
 // Auth State Notifier for Router
 // This allows go_router to re-evaluate the redirect logic whenever
@@ -191,6 +194,17 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/admin',
       builder: (context, state) => const AdminPage(),
+<<<<<<< HEAD
+=======
+    ),
+    GoRoute(
+      path: '/admin/mitra',
+      builder: (context, state) => const AdminMitraVerifyPage(),
+    ),
+    GoRoute(
+      path: '/admin/withdraw',
+      builder: (context, state) => const AdminWithdrawPage(),
+>>>>>>> e7e1fe545bf7a3dc3faec6e433b258743b74a72d
     ),
   ],
 );
