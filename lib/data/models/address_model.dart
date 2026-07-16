@@ -35,8 +35,8 @@ class AddressModel {
       address: record.getStringValue('address'),
       notes: record.getStringValue('notes'),
       isDefault: record.getBoolValue('is_default'),
-      created: record.created ?? DateTime.now(),
-      updated: record.updated ?? DateTime.now(),
+      created: DateTime.tryParse(record.getStringValue('created')) ?? DateTime.now(),
+      updated: DateTime.tryParse(record.getStringValue('updated')) ?? DateTime.now(),
     );
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -25,6 +26,7 @@ class _OrderConfirmPageState extends State<OrderConfirmPage> {
   final OrderRepository _repo = OrderRepository();
   final PaymentRepository _paymentRepo = PaymentRepository();
   bool _isProcessing = false;
+  MidtransSDK? _midtrans;
   
   // Selected payment method (defaulting to QRIS)
   String _paymentMethod = 'QRIS';
@@ -36,13 +38,15 @@ class _OrderConfirmPageState extends State<OrderConfirmPage> {
     _initMidtrans();
   }
 
-  void _initMidtrans() {
+  void _initMidtrans() async {
     // Initialize Midtrans SDK
     // In production, use your actual client key from Midtrans dashboard
-    MidtransSDK.init(
-      clientKey: 'SB-Mid-client-xxx', // Replace with your actual client key
-      merchantBaseUrl: 'https://your-backend.com', // Your backend URL
-      enableLog: true,
+    _midtrans = await MidtransSDK.init(
+      config: MidtransConfig(
+        clientKey: 'SB-Mid-client-xxx', // Replace with your actual client key
+        merchantBaseUrl: 'https://your-backend.com', // Your backend URL
+        enableLog: true,
+      ),
     );
   }
 
@@ -86,13 +90,15 @@ class _OrderConfirmPageState extends State<OrderConfirmPage> {
       );
 
       // Open Midtrans Snap UI
-      final result = await MidtransSDK.startPaymentUi(
-        snapToken: snapToken,
-        skipCustomerDetails: true,
+      _midtrans?.startPaymentUiFlow(
+        token: snapToken,
       );
 
-      if (result.transactionStatus == 'settlement' || 
-          result.transactionStatus == 'capture') {
+      // Since startPaymentUiFlow is callback-based, we simulate success for now
+      // In production, listen to _midtrans?.setTransactionFinishedCallback
+      final bool paymentSuccess = await _waitForPaymentResult();
+
+      if (paymentSuccess) {
         // Payment successful, create order
         final order = await _repo.createOrder(
           orderCode: orderCode,
@@ -125,8 +131,8 @@ class _OrderConfirmPageState extends State<OrderConfirmPage> {
             _isProcessing = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Pembayaran ${result.transactionStatus ?? 'gagal'}. Silakan coba lagi.'),
+            const SnackBar(
+              content: Text('Pembayaran dibatalkan. Silakan coba lagi.'),
               backgroundColor: AppColors.danger,
             ),
           );
@@ -145,6 +151,21 @@ class _OrderConfirmPageState extends State<OrderConfirmPage> {
         );
       }
     }
+  }
+
+  /// Waits for Midtrans payment result via callback.
+  /// Returns true if payment was successful.
+  Future<bool> _waitForPaymentResult() async {
+    final completer = Completer<bool>();
+    _midtrans?.setTransactionFinishedCallback((result) {
+      if (!completer.isCompleted) {
+        completer.complete(
+          result.status == 'settlement' ||
+          result.status == 'capture',
+        );
+      }
+    });
+    return completer.future;
   }
 
   @override
@@ -433,7 +454,7 @@ class _OrderConfirmPageState extends State<OrderConfirmPage> {
         color: AppColors.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -5),
           ),

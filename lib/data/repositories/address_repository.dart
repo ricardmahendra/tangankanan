@@ -96,7 +96,6 @@ class AddressRepository {
     try {
       final records = await pb.collection('addresses').getFullList(
         filter: 'user_id = "$userId" && is_default = true',
-        perPage: 1,
       );
       
       if (records.isNotEmpty) {

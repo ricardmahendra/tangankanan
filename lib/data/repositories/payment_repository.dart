@@ -1,8 +1,4 @@
-import 'package:dio/dio.dart';
-import '../../core/constants/app_constants.dart';
-
 class PaymentRepository {
-  final Dio _dio = Dio();
 
   /// Get Snap Token from Midtrans API
   /// In production, this should call your backend which then calls Midtrans
