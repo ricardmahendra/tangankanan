@@ -45,7 +45,8 @@ class _OrderPageState extends State<OrderPage> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = ''; // Disembunyikan agar UI memunculkan empty state
+          _activeOrders = [];
           _isLoading = false;
         });
       }

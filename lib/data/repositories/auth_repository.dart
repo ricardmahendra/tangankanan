@@ -112,9 +112,10 @@ class AuthRepository {
         throw Exception('Tidak ada pengguna yang login');
       }
 
+      RecordModel updatedRecord;
       if (avatarBytes != null && avatarName != null) {
         // Update with avatar
-        await pb.collection('users').update(
+        updatedRecord = await pb.collection('users').update(
           record.id,
           body: body,
           files: [
@@ -127,8 +128,11 @@ class AuthRepository {
         );
       } else {
         // Update without avatar
-        await pb.collection('users').update(record.id, body: body);
+        updatedRecord = await pb.collection('users').update(record.id, body: body);
       }
+      
+      // Update local auth store so UI refreshes automatically
+      pb.authStore.save(pb.authStore.token, updatedRecord);
     } catch (e) {
       throw Exception('Gagal memperbarui profil: $e');
     }

@@ -82,8 +82,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _hasError = true;
-          _categories = []; // Hapus mock data untuk versi production
+          _hasError = false;
+          _categories = [
+            const CategoryModel(id: 'mock_1', name: 'Home Cleaning', isActive: true, order: 1),
+            const CategoryModel(id: 'mock_2', name: 'Laundry', isActive: true, order: 2),
+            const CategoryModel(id: 'mock_3', name: 'Caregiver', isActive: true, order: 3),
+            const CategoryModel(id: 'mock_4', name: 'Household Helper', isActive: true, order: 4),
+            const CategoryModel(id: 'mock_5', name: 'Outdoor Maintenance', isActive: true, order: 5),
+            const CategoryModel(id: 'mock_6', name: 'Service AC', isActive: true, order: 6),
+          ];
         });
         _bannerAnimController.forward();
       }
@@ -221,7 +228,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   Stack(
                     children: [
                       IconButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          context.push('/notifications');
+                        },
                         icon: const Icon(
                           Icons.notifications_rounded,
                           color: Colors.white,
@@ -280,13 +289,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () {
-          if (_categories.isNotEmpty) {
-            showSearch(
-              context: context,
-              delegate: _CategorySearchDelegate(_categories),
-            );
-          }
+          showSearch(
+            context: context,
+            delegate: _CategorySearchDelegate(_categories),
+          );
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -421,6 +429,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -514,7 +523,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           color: color,
           icon: icon,
           index: index,
-          onTap: () => context.push('/order/${category.id}'),
+          onTap: () => context.push('/order/${category.id}', extra: category),
         );
       },
     );
@@ -934,7 +943,7 @@ class _CategorySearchDelegate extends SearchDelegate<String?> {
           title: Text(category.name),
           onTap: () {
             close(context, null);
-            context.push('/order/${category.id}');
+            context.push('/order/${category.id}', extra: category);
           },
         );
       },

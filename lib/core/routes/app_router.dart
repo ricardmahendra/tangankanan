@@ -24,6 +24,7 @@ import '../../features/admin/admin_mitra_verify_page.dart';
 import '../../features/admin/admin_withdraw_page.dart';
 import '../../features/chat/chat_page.dart';
 import '../../features/history/history_page.dart';
+import '../../features/home/notification_page.dart';
 import '../../data/models/order_flow_data.dart';
 import '../../data/models/category_model.dart';
 
@@ -104,6 +105,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/main',
       builder: (context, state) => const MainPage(),
+    ),
+    GoRoute(
+      path: '/notifications',
+      builder: (context, state) => const NotificationPage(),
     ),
     GoRoute(
       path: '/order/confirm', // Placed before /order/:categoryId to avoid conflict

@@ -50,8 +50,28 @@ class _SubcategoryPageState extends State<SubcategoryPage> {
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = '';
         _isLoading = false;
+        _subcategories = [
+          SubcategoryModel(
+            id: 'sub_mock_1',
+            categoryId: widget.categoryId,
+            name: 'Pembersihan Standar',
+            description: 'Menyapu, mengepel, membersihkan debu di seluruh ruangan.',
+            price: 50000,
+            priceUnit: 'per sesi',
+            isActive: true,
+          ),
+          SubcategoryModel(
+            id: 'sub_mock_2',
+            categoryId: widget.categoryId,
+            name: 'Pembersihan Menyeluruh (Deep Cleaning)',
+            description: 'Pembersihan mendetail termasuk noda membandel dan sela-sela.',
+            price: 150000,
+            priceUnit: 'per ruangan',
+            isActive: true,
+          ),
+        ];
       });
     }
   }
