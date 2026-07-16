@@ -31,6 +31,7 @@ class _AdminPageState extends State<AdminPage> {
   // Data
   List<PartnerModel> _pendingPartners = [];
   List<WithdrawalModel> _pendingWithdrawalsList = [];
+  List<WithdrawalModel> _approvedWithdrawalsList = [];
   List<OrderModel> _recentOrders = [];
 
   bool _isLoading = true;
@@ -92,12 +93,14 @@ class _AdminPageState extends State<AdminPage> {
 
   Future<void> _loadPendingWithdrawals() async {
     try {
-      final withdrawals = await _withdrawalRepo.getWithdrawals('');
+      final pending = await _withdrawalRepo.getPendingWithdrawals();
+      final approved = await _withdrawalRepo.getApprovedWithdrawals();
       setState(() {
-        _pendingWithdrawalsList = withdrawals.where((w) => w.status == 'pending').toList();
+        _pendingWithdrawalsList = pending;
+        _approvedWithdrawalsList = approved;
       });
     } catch (e) {
-      debugPrint('Gagal load pending withdrawals: $e');
+      debugPrint('Gagal load withdrawals: $e');
     }
   }
 
@@ -535,6 +538,32 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   Widget _buildWithdrawalTab() {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          const TabBar(
+            tabs: [
+              Tab(text: 'Pending'),
+              Tab(text: 'Approved'),
+            ],
+            labelColor: AppColors.primary,
+            unselectedLabelColor: Colors.grey,
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _buildPendingWithdrawalsList(),
+                _buildApprovedWithdrawalsList(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPendingWithdrawalsList() {
     return RefreshIndicator(
       onRefresh: _loadPendingWithdrawals,
       child: _pendingWithdrawalsList.isEmpty
@@ -544,13 +573,29 @@ class _AdminPageState extends State<AdminPage> {
               itemCount: _pendingWithdrawalsList.length,
               itemBuilder: (context, index) {
                 final withdrawal = _pendingWithdrawalsList[index];
-                return _buildWithdrawalCard(withdrawal);
+                return _buildWithdrawalCard(withdrawal, isPending: true);
               },
             ),
     );
   }
 
-  Widget _buildWithdrawalCard(WithdrawalModel withdrawal) {
+  Widget _buildApprovedWithdrawalsList() {
+    return RefreshIndicator(
+      onRefresh: _loadPendingWithdrawals,
+      child: _approvedWithdrawalsList.isEmpty
+          ? _buildEmptyState('Tidak ada penarikan yang disetujui')
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _approvedWithdrawalsList.length,
+              itemBuilder: (context, index) {
+                final withdrawal = _approvedWithdrawalsList[index];
+                return _buildWithdrawalCard(withdrawal, isPending: false);
+              },
+            ),
+    );
+  }
+
+  Widget _buildWithdrawalCard(WithdrawalModel withdrawal, {required bool isPending}) {
     final currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
 
     return Card(
@@ -593,32 +638,45 @@ class _AdminPageState extends State<AdminPage> {
             _buildInfoRow('Bank', withdrawal.bankName),
             _buildInfoRow('No Rekening', withdrawal.bankAccount),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _rejectWithdrawal(withdrawal),
-                    icon: const Icon(Icons.close, size: 18),
-                    label: const Text('Tolak'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.danger,
-                      side: const BorderSide(color: AppColors.danger),
+            if (isPending)
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _rejectWithdrawal(withdrawal),
+                      icon: const Icon(Icons.close, size: 18),
+                      label: const Text('Tolak'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.danger,
+                        side: const BorderSide(color: AppColors.danger),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _approveWithdrawal(withdrawal),
-                    icon: const Icon(Icons.check, size: 18),
-                    label: const Text('Approve'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _approveWithdrawal(withdrawal),
+                      icon: const Icon(Icons.check, size: 18),
+                      label: const Text('Approve'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                      ),
                     ),
                   ),
+                ],
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _markAsTransferred(withdrawal),
+                  icon: const Icon(Icons.send, size: 18),
+                  label: const Text('Transfer Done'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
                 ),
-              ],
-            ),
+              ),
           ],
         ),
       ),
@@ -651,10 +709,7 @@ class _AdminPageState extends State<AdminPage> {
     if (reason == null) return;
 
     try {
-      await pb.collection('withdrawals').update(withdrawal.id, body: {
-        'status': 'rejected',
-        'admin_note': reason,
-      });
+      await _withdrawalRepo.rejectWithdrawal(withdrawal.id, reason);
       await _loadPendingWithdrawals();
       await _loadDashboardData();
       if (mounted) {
@@ -667,6 +722,49 @@ class _AdminPageState extends State<AdminPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal: $e'), backgroundColor: AppColors.danger),
         );
+      }
+    }
+  }
+
+  Future<void> _markAsTransferred(WithdrawalModel withdrawal) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Konfirmasi Transfer'),
+        content: Text(
+          'Apakah Anda yakin sudah mentransfer Rp ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0).format(withdrawal.amount)} ke ${withdrawal.bankName} - ${withdrawal.bankAccount}?\n\n'
+          'Saldo mitra akan dipotong otomatis.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            child: const Text('Ya, Sudah Transfer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _withdrawalRepo.markAsTransferred(withdrawal.id);
+        await _loadPendingWithdrawals();
+        await _loadDashboardData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Transfer berhasil dicatat, saldo mitra dipotong'), backgroundColor: AppColors.success),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal: $e'), backgroundColor: AppColors.danger),
+          );
+        }
       }
     }
   }

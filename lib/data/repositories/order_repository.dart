@@ -1,5 +1,6 @@
 import 'package:pocketbase/pocketbase.dart';
 import '../../core/pocketbase/pb.dart';
+import '../../core/exceptions/app_exception.dart';
 import '../models/order_model.dart';
 
 class OrderRepository {
@@ -13,7 +14,7 @@ class OrderRepository {
       );
       return records.items.map((r) => OrderModel.fromRecord(r)).toList();
     } catch (e) {
-      throw Exception('Gagal memuat pesanan masuk: $e');
+      throw NetworkException(message: 'Gagal memuat pesanan masuk. Periksa koneksi internet.');
     }
   }
 
@@ -28,7 +29,7 @@ class OrderRepository {
       );
       return records.items.map((r) => OrderModel.fromRecord(r)).toList();
     } catch (e) {
-      throw Exception('Gagal memuat pesanan aktif: $e');
+      throw NetworkException(message: 'Gagal memuat pesanan aktif. Periksa koneksi internet.');
     }
   }
 
@@ -42,7 +43,7 @@ class OrderRepository {
       );
       return records.items.map((r) => OrderModel.fromRecord(r)).toList();
     } catch (e) {
-      throw Exception('Gagal memuat riwayat pesanan pengguna: $e');
+      throw NetworkException(message: 'Gagal memuat riwayat pesanan. Periksa koneksi internet.');
     }
   }
 
@@ -56,7 +57,7 @@ class OrderRepository {
       );
       return records.items.map((r) => OrderModel.fromRecord(r)).toList();
     } catch (e) {
-      throw Exception('Gagal memuat pesanan aktif: $e');
+      throw NetworkException(message: 'Gagal memuat pesanan aktif. Periksa koneksi internet.');
     }
   }
 
@@ -70,7 +71,7 @@ class OrderRepository {
       );
       return records.items.map((r) => OrderModel.fromRecord(r)).toList();
     } catch (e) {
-      throw Exception('Gagal memuat riwayat pesanan: $e');
+      throw NetworkException(message: 'Gagal memuat riwayat pesanan. Periksa koneksi internet.');
     }
   }
 
@@ -82,8 +83,13 @@ class OrderRepository {
         expand: 'user_id,partner_id,order_items(order_id)',
       );
       return OrderModel.fromRecord(record);
+    } on ClientException catch (e) {
+      if (e.statusCode == 404) {
+        throw NotFoundException(message: 'Pesanan tidak ditemukan.');
+      }
+      throw NetworkException(message: 'Gagal memuat detail pesanan. Periksa koneksi internet.');
     } catch (e) {
-      throw Exception('Gagal memuat detail pesanan: $e');
+      throw NetworkException(message: 'Gagal memuat detail pesanan.');
     }
   }
 
@@ -138,7 +144,7 @@ class OrderRepository {
       // 3. Return full order with expands
       return getOrderDetail(orderId);
     } catch (e) {
-      throw Exception('Gagal membuat pesanan: $e');
+      throw NetworkException(message: 'Gagal membuat pesanan. Periksa koneksi internet.');
     }
   }
 
@@ -194,7 +200,7 @@ class OrderRepository {
 
       return OrderModel.fromRecord(record);
     } catch (e) {
-      throw Exception('Gagal memperbarui status pesanan: $e');
+      throw NetworkException(message: 'Gagal memperbarui status pesanan. Periksa koneksi internet.');
     }
   }
 

@@ -7,6 +7,9 @@ class OrderFlowData extends Equatable {
   final CategoryModel category;
   final List<SubcategorySelection> selectedItems;
   final String address;
+  final String recipientName;
+  final String recipientPhone;
+  final String? addressId; // Optional: ID of saved address
   final DateTime? scheduledAt;
   final String notes;
   final PartnerModel? selectedPartner;
@@ -15,6 +18,9 @@ class OrderFlowData extends Equatable {
     required this.category,
     this.selectedItems = const [],
     this.address = '',
+    this.recipientName = '',
+    this.recipientPhone = '',
+    this.addressId,
     this.scheduledAt,
     this.notes = '',
     this.selectedPartner,
@@ -24,6 +30,9 @@ class OrderFlowData extends Equatable {
     CategoryModel? category,
     List<SubcategorySelection>? selectedItems,
     String? address,
+    String? recipientName,
+    String? recipientPhone,
+    String? addressId,
     DateTime? scheduledAt,
     String? notes,
     PartnerModel? selectedPartner,
@@ -32,6 +41,9 @@ class OrderFlowData extends Equatable {
       category: category ?? this.category,
       selectedItems: selectedItems ?? this.selectedItems,
       address: address ?? this.address,
+      recipientName: recipientName ?? this.recipientName,
+      recipientPhone: recipientPhone ?? this.recipientPhone,
+      addressId: addressId ?? this.addressId,
       scheduledAt: scheduledAt ?? this.scheduledAt,
       notes: notes ?? this.notes,
       selectedPartner: selectedPartner ?? this.selectedPartner,
@@ -46,6 +58,9 @@ class OrderFlowData extends Equatable {
         category,
         selectedItems,
         address,
+        recipientName,
+        recipientPhone,
+        addressId,
         scheduledAt,
         notes,
         selectedPartner,

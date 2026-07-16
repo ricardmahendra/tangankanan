@@ -1,6 +1,7 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 import '../../core/pocketbase/pb.dart';
+import '../../core/exceptions/app_exception.dart';
 import '../models/user_model.dart';
 import '../models/partner_model.dart';
 
@@ -19,10 +20,14 @@ class AuthRepository {
         // If users fails, try partners collection
         final authRecord = await pb.collection('partners').authWithPassword(identity, password);
         return PartnerModel.fromRecord(authRecord.record);
-      } on ClientException catch (e) {
-        throw Exception('Gagal login. Periksa kembali kredensial Anda.\n\nError: ${e.statusCode} - ${e.response}');
+      } on ClientException catch (_) {
+        throw AuthException(
+          message: 'Email/No HP atau password salah. Silakan coba lagi.',
+        );
       } catch (e) {
-        throw Exception('Terjadi kesalahan: $e');
+        throw NetworkException(
+          message: 'Gagal terhubung ke server. Periksa koneksi internet Anda.',
+        );
       }
     }
   }
@@ -68,8 +73,16 @@ class AuthRepository {
       await login(email, password);
       
       return UserModel.fromRecord(record);
+    } on ClientException catch (e) {
+      if (e.response['email'] != null) {
+        throw ValidationException(message: 'Email sudah terdaftar.');
+      }
+      if (e.response['phone'] != null) {
+        throw ValidationException(message: 'No HP sudah terdaftar.');
+      }
+      throw ValidationException(message: 'Gagal mendaftar. Periksa data Anda.');
     } catch (e) {
-      throw Exception('Gagal mendaftar: $e');
+      throw NetworkException(message: 'Gagal mendaftar. Periksa koneksi internet Anda.');
     }
   }
 
