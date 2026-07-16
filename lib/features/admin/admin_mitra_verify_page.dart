@@ -13,6 +13,7 @@ class AdminMitraVerifyPage extends StatefulWidget {
 class _AdminMitraVerifyPageState extends State<AdminMitraVerifyPage> {
   final _adminRepo = AdminRepository();
   List<PartnerModel> _pendingMitra = [];
+  Map<String, List<String>> _partnerSkills = {};
   bool _isLoading = false;
 
   @override
@@ -25,7 +26,15 @@ class _AdminMitraVerifyPageState extends State<AdminMitraVerifyPage> {
     setState(() => _isLoading = true);
     try {
       final mitra = await _adminRepo.getPendingMitra();
-      setState(() => _pendingMitra = mitra);
+      
+      // Fetch skills names map for the pending partners
+      final partnerIds = mitra.map((p) => p.id).toList();
+      final skillsMap = await _adminRepo.getPartnerSkillNamesMap(partnerIds);
+
+      setState(() {
+        _pendingMitra = mitra;
+        _partnerSkills = skillsMap;
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -184,10 +193,65 @@ class _AdminMitraVerifyPageState extends State<AdminMitraVerifyPage> {
 
                             // Details
                             _DetailRow('NIK', mitra.nik),
-                            _DetailRow('Email', mitra.phone),
+                            _DetailRow('Email', mitra.email),
+                            _DetailRow('Bio', mitra.cleanBio),
                             _DetailRow('Bank', mitra.bankName),
                             _DetailRow('Rekening', mitra.bankAccount),
                             const SizedBox(height: 16),
+
+                            // Skills
+                            Builder(
+                              builder: (context) {
+                                final standardSkills = _partnerSkills[mitra.id] ?? [];
+                                final customSkills = mitra.customSkills;
+                                final allSkills = [...standardSkills, ...customSkills];
+                                
+                                if (allSkills.isEmpty) return const SizedBox.shrink();
+                                
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Keahlian / Layanan:',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.grey[600],
+                                            ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 6,
+                                        children: [
+                                          ...standardSkills.map((skill) => Chip(
+                                            label: Text(
+                                              skill,
+                                              style: const TextStyle(fontSize: 11),
+                                            ),
+                                            backgroundColor: Colors.blue[50],
+                                            visualDensity: VisualDensity.compact,
+                                          )),
+                                          ...customSkills.map((skill) => Chip(
+                                            label: Text(
+                                              skill,
+                                              style: const TextStyle(fontSize: 11),
+                                            ),
+                                            backgroundColor: Colors.grey[100],
+                                            side: const BorderSide(color: Colors.grey),
+                                            visualDensity: VisualDensity.compact,
+                                          )),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
 
                             // Documents
                             if (mitra.ktpPhoto.isNotEmpty)

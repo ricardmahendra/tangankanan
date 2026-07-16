@@ -4,6 +4,7 @@ import 'package:pocketbase/pocketbase.dart';
 class PartnerModel extends Equatable {
   final String id;
   final String name;
+  final String email;
   final String phone;
   final String nik;
   final String ktpPhoto;
@@ -26,6 +27,7 @@ class PartnerModel extends Equatable {
   const PartnerModel({
     required this.id,
     required this.name,
+    this.email = '',
     required this.phone,
     this.nik = '',
     this.ktpPhoto = '',
@@ -50,6 +52,7 @@ class PartnerModel extends Equatable {
     return PartnerModel(
       id: record.id,
       name: record.getStringValue('name'),
+      email: record.getStringValue('email'),
       phone: record.getStringValue('phone'),
       nik: record.getStringValue('nik'),
       ktpPhoto: record.getStringValue('ktp_photo'),
@@ -74,6 +77,7 @@ class PartnerModel extends Equatable {
   Map<String, dynamic> toJson() {
     return {
       'name': name,
+      'email': email,
       'phone': phone,
       'nik': nik,
       'bio': bio,
@@ -90,10 +94,33 @@ class PartnerModel extends Equatable {
     };
   }
 
+  String get cleanBio {
+    if (bio.contains('Keahlian Lain:')) {
+      final parts = bio.split('Keahlian Lain:');
+      return parts[0].trim();
+    }
+    return bio;
+  }
+
+  List<String> get customSkills {
+    if (bio.contains('Keahlian Lain:')) {
+      final parts = bio.split('Keahlian Lain:');
+      if (parts.length > 1) {
+        return parts[1]
+            .split(',')
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
+      }
+    }
+    return [];
+  }
+
   @override
   List<Object?> get props => [
         id,
         name,
+        email,
         phone,
         nik,
         ktpPhoto,

@@ -117,6 +117,60 @@ class PartnerRepository {
     }
   }
 
+  /// Fetch all available partners (online, verified, and active) who have skills matching any of the subcategory IDs
+  Future<List<PartnerModel>> getAvailablePartnersForSkills(List<String> subcategoryIds) async {
+    try {
+      if (subcategoryIds.isEmpty) return [];
+
+      final skillFilters = subcategoryIds.map((id) => 'subcategory_id = "$id"').join(' || ');
+      final filterString = '($skillFilters) && partner_id.is_online = true && partner_id.is_verified = true && partner_id.is_active = true';
+
+      final records = await pb.collection('partner_skills').getFullList(
+        filter: filterString,
+        expand: 'partner_id',
+      );
+
+      final Map<String, PartnerModel> partnersMap = {};
+      for (final record in records) {
+        final partnerRecord = record.expand['partner_id']?.firstOrNull;
+        if (partnerRecord != null) {
+          partnersMap[partnerRecord.id] = PartnerModel.fromRecord(partnerRecord);
+        }
+      }
+
+      return partnersMap.values.toList();
+    } catch (e) {
+      throw Exception('Gagal memuat mitra sesuai keahlian: $e');
+    }
+  }
+
+  /// Fetch a map of partner ID to list of their skill names (subcategory names)
+  Future<Map<String, List<String>>> getPartnerSkillNamesMap(List<String> partnerIds) async {
+    try {
+      if (partnerIds.isEmpty) return {};
+
+      final partnerFilters = partnerIds.map((id) => 'partner_id = "$id"').join(' || ');
+      final records = await pb.collection('partner_skills').getFullList(
+        filter: '($partnerFilters)',
+        expand: 'subcategory_id',
+      );
+
+      final Map<String, List<String>> partnerSkillsMap = {};
+      for (final record in records) {
+        final partnerId = record.getStringValue('partner_id');
+        final subcategoryRecord = record.expand['subcategory_id']?.firstOrNull;
+        if (subcategoryRecord != null) {
+          final name = subcategoryRecord.getStringValue('name');
+          partnerSkillsMap.putIfAbsent(partnerId, () => []).add(name);
+        }
+      }
+
+      return partnerSkillsMap;
+    } catch (e) {
+      return {};
+    }
+  }
+
   /// Get current logged in partner model if authenticated
   PartnerModel? getCurrentPartner() {
     final record = pb.authStore.record;

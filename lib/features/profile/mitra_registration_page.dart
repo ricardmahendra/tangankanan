@@ -29,6 +29,7 @@ class _MitraRegistrationPageState extends State<MitraRegistrationPage> {
   
   final _nikController = TextEditingController();
   final _bioController = TextEditingController();
+  final _customSkillsController = TextEditingController();
   
   Uint8List? _ktpBytes;
   String? _ktpName;
@@ -61,7 +62,57 @@ class _MitraRegistrationPageState extends State<MitraRegistrationPage> {
 
   Future<void> _loadSkills() async {
     try {
-      final categories = await _categoryRepo.getCategories();
+      var categories = await _categoryRepo.getCategories();
+      
+      // Auto-seed default categories if database is empty
+      if (categories.isEmpty) {
+        final cleaningCat = await pb.collection('categories').create(body: {'name': 'Home Cleaning', 'order': 1, 'is_active': true});
+        final laundryCat = await pb.collection('categories').create(body: {'name': 'Laundry Assistance', 'order': 2, 'is_active': true});
+        final maintenanceCat = await pb.collection('categories').create(body: {'name': 'Home Maintenance', 'order': 3, 'is_active': true});
+        
+        categories = await _categoryRepo.getCategories();
+      }
+      
+      // Auto-seed specific subcategories if missing
+      final allSubcategories = await pb.collection('subcategories').getFullList();
+      final subNames = allSubcategories.map((s) => s.getStringValue('name').toLowerCase()).toSet();
+      
+      final requiredSkills = {
+        'Nyapu': ('Home Cleaning', 25000, 'per sesi'),
+        'Ngepel': ('Home Cleaning', 25000, 'per sesi'),
+        'Nyuci': ('Laundry Assistance', 8000, 'per kg'),
+        'Instalasi Listrik': ('Home Maintenance', 75000, 'per pekerjaan'),
+      };
+      
+      for (final entry in requiredSkills.entries) {
+        final skillName = entry.key;
+        if (!subNames.contains(skillName.toLowerCase())) {
+          final catName = entry.value.$1;
+          final cat = categories.firstWhere(
+            (c) => c.name.toLowerCase() == catName.toLowerCase(),
+            orElse: () => const CategoryModel(id: '', name: ''),
+          );
+          
+          String catId = cat.id;
+          if (catId.isEmpty) {
+            final newCat = await pb.collection('categories').create(body: {'name': catName, 'order': categories.length + 1, 'is_active': true});
+            catId = newCat.id;
+            categories = await _categoryRepo.getCategories();
+          }
+          
+          await pb.collection('subcategories').create(body: {
+            'category_id': catId,
+            'name': skillName,
+            'price': entry.value.$2,
+            'price_unit': entry.value.$3,
+            'is_active': true,
+            'order': 1,
+          });
+        }
+      }
+      
+      // Reload categories and subcategories
+      categories = await _categoryRepo.getCategories();
       final Map<String, List<SubcategoryModel>> subcategoriesMap = {};
       
       for (final category in categories) {
@@ -91,6 +142,7 @@ class _MitraRegistrationPageState extends State<MitraRegistrationPage> {
   void dispose() {
     _nikController.dispose();
     _bioController.dispose();
+    _customSkillsController.dispose();
     super.dispose();
   }
 
@@ -140,13 +192,19 @@ class _MitraRegistrationPageState extends State<MitraRegistrationPage> {
     try {
       final defaultMitraPassword = 'mitra123456';
 
+      final bioText = _bioController.text.trim();
+      final customSkillsText = _customSkillsController.text.trim();
+      final fullBio = customSkillsText.isNotEmpty 
+          ? '$bioText\n\nKeahlian Lain: $customSkillsText' 
+          : bioText;
+
       await _partnerRepo.registerPartner(
         name: _user!.name,
         phone: _user!.phone,
         email: _user!.email,
         password: defaultMitraPassword,
         nik: _nikController.text,
-        bio: _bioController.text,
+        bio: fullBio,
         ktpPhotoName: _ktpName!,
         ktpPhotoBytes: _ktpBytes!,
         selfiePhotoName: _selfieName!,
@@ -333,29 +391,48 @@ class _MitraRegistrationPageState extends State<MitraRegistrationPage> {
                               runSpacing: 8,
                               children: subcategories.map((sub) {
                                 final isSelected = _selectedSubcategoryIds.contains(sub.id);
-                                return FilterChip(
-                                  label: Text(
-                                    sub.name,
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 13,
-                                      color: isSelected ? Colors.white : AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  selected: isSelected,
-                                  selectedColor: AppColors.primary,
-                                  checkmarkColor: Colors.white,
-                                  onSelected: (selected) {
+                                return InkWell(
+                                  onTap: () {
                                     setState(() {
-                                      if (selected) {
-                                        _selectedSubcategoryIds.add(sub.id);
-                                      } else {
+                                      if (isSelected) {
                                         _selectedSubcategoryIds.remove(sub.id);
+                                      } else {
+                                        _selectedSubcategoryIds.add(sub.id);
                                       }
                                     });
                                   },
-                                  backgroundColor: Colors.white,
-                                  side: BorderSide(color: AppColors.border),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? AppColors.primaryLight : Colors.white,
+                                      border: Border.all(
+                                        color: isSelected ? AppColors.primary : AppColors.border,
+                                        width: isSelected ? 2 : 1,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+                                          color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          sub.name,
+                                          style: TextStyle(
+                                            fontFamily: 'Poppins',
+                                            fontSize: 13,
+                                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                            color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 );
                               }).toList(),
                             ),
@@ -363,6 +440,16 @@ class _MitraRegistrationPageState extends State<MitraRegistrationPage> {
                           ],
                         );
                       }).toList(),
+
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _customSkillsController,
+                      decoration: const InputDecoration(
+                        labelText: 'Keahlian Lainnya (Jika tidak ada di list)',
+                        hintText: 'Contoh: Reparasi AC, Pembuat Kue (pisahkan dengan koma)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
 
                     const SizedBox(height: 24),
 

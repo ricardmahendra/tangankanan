@@ -111,4 +111,31 @@ class AdminRepository {
       throw Exception('Gagal mengambil statistik: $e');
     }
   }
+
+  /// Fetch a map of partner ID to list of their skill names (subcategory names)
+  Future<Map<String, List<String>>> getPartnerSkillNamesMap(List<String> partnerIds) async {
+    try {
+      if (partnerIds.isEmpty) return {};
+
+      final partnerFilters = partnerIds.map((id) => 'partner_id = "$id"').join(' || ');
+      final records = await pb.collection('partner_skills').getFullList(
+        filter: '($partnerFilters)',
+        expand: 'subcategory_id',
+      );
+
+      final Map<String, List<String>> partnerSkillsMap = {};
+      for (final record in records) {
+        final partnerId = record.getStringValue('partner_id');
+        final subcategoryRecord = record.expand['subcategory_id']?.firstOrNull;
+        if (subcategoryRecord != null) {
+          final name = subcategoryRecord.getStringValue('name');
+          partnerSkillsMap.putIfAbsent(partnerId, () => []).add(name);
+        }
+      }
+
+      return partnerSkillsMap;
+    } catch (e) {
+      return {};
+    }
+  }
 }

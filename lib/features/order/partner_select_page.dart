@@ -23,6 +23,7 @@ class _PartnerSelectPageState extends State<PartnerSelectPage> {
   bool _isLoading = true;
   String _error = '';
   List<PartnerModel> _partners = [];
+  Map<String, List<String>> _partnerSkills = {};
   PartnerModel? _selectedPartner;
 
   @override
@@ -37,9 +38,17 @@ class _PartnerSelectPageState extends State<PartnerSelectPage> {
         _isLoading = true;
         _error = '';
       });
-      final data = await _repo.getAvailablePartners();
+      
+      final subcategoryIds = widget.flowData.selectedItems.map((item) => item.subcategory.id).toList();
+      final data = await _repo.getAvailablePartnersForSkills(subcategoryIds);
+      
+      // Fetch skills names map for the partners
+      final partnerIds = data.map((p) => p.id).toList();
+      final skillsMap = await _repo.getPartnerSkillNamesMap(partnerIds);
+
       setState(() {
         _partners = data;
+        _partnerSkills = skillsMap;
         _isLoading = false;
       });
     } catch (e) {
@@ -218,6 +227,59 @@ class _PartnerSelectPageState extends State<PartnerSelectPage> {
                             ),
                           ),
                         ],
+                      ),
+                      // Standard skills and custom skills display
+                      Builder(
+                        builder: (context) {
+                          final standardSkills = _partnerSkills[partner.id] ?? [];
+                          final customSkills = partner.customSkills;
+                          final allSkills = [...standardSkills, ...customSkills];
+                          
+                          if (allSkills.isEmpty) return const SizedBox.shrink();
+                          
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Wrap(
+                              spacing: 4,
+                              runSpacing: 4,
+                              children: [
+                                ...standardSkills.map((skill) => Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryLight,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    skill,
+                                    style: const TextStyle(
+                                      fontFamily: 'Poppins',
+                                      fontSize: 11,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                )),
+                                ...customSkills.map((skill) => Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    border: Border.all(color: AppColors.border),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    skill,
+                                    style: const TextStyle(
+                                      fontFamily: 'Poppins',
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                )),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
