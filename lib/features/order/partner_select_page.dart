@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/location/location_service.dart';
 import '../../data/models/order_flow_data.dart';
 import '../../data/models/partner_model.dart';
 import '../../data/repositories/partner_repository.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:geolocator/geolocator.dart';
 
 class PartnerSelectPage extends StatefulWidget {
   final OrderFlowData flowData;
@@ -20,16 +22,67 @@ class PartnerSelectPage extends StatefulWidget {
 
 class _PartnerSelectPageState extends State<PartnerSelectPage> {
   final PartnerRepository _repo = PartnerRepository();
+  final LocationService _locationService = LocationService();
+  
   bool _isLoading = true;
   String _error = '';
   List<PartnerModel> _partners = [];
   PartnerModel? _selectedPartner;
+  Position? _userPosition;
+  Map<String, double> _distances = {};
 
   @override
   void initState() {
     super.initState();
     _loadPartners();
+    _getUserLocation();
   }
+
+  Future<void> _getUserLocation() async {
+    try {
+      final position = await _locationService.getCurrentLocation();
+      if (position != null && mounted) {
+        setState(() {
+          _userPosition = position;
+          _calculateDistances();
+        });
+      }
+    } catch (e) {
+      print('Error getting user location: $e');
+    }
+  }
+
+  void _calculateDistances() {
+    if (_userPosition == null) return;
+    
+    _distances = {};
+    for (final partner in _partners) {
+      if (partner.latitude != null && partner.longitude != null) {
+        final distance = _locationService.calculateDistance(
+          _userPosition!.latitude,
+          _userPosition!.longitude,
+          partner.latitude!,
+          partner.longitude!,
+        );
+        _distances[partner.id] = distance;
+      }
+    }
+    
+    // Sort partners by distance
+    _partners.sort((a, b) {
+      final distA = _distances[a.id] ?? double.infinity;
+      final distB = _distances[b.id] ?? double.infinity;
+      return distA.compareTo(distB);
+    });
+    
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  List<String> get _selectedSubcategoryIds => widget.flowData.selectedItems
+      .map((item) => item.subcategory.id)
+      .toList();
 
   Future<void> _loadPartners() async {
     try {
@@ -37,11 +90,15 @@ class _PartnerSelectPageState extends State<PartnerSelectPage> {
         _isLoading = true;
         _error = '';
       });
-      final data = await _repo.getAvailablePartners();
+      final data = await _repo.getAvailablePartners(
+        subcategoryIds: _selectedSubcategoryIds,
+      );
       setState(() {
         _partners = data;
         _isLoading = false;
       });
+      // Calculate distances after partners are loaded
+      _calculateDistances();
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -116,20 +173,39 @@ class _PartnerSelectPageState extends State<PartnerSelectPage> {
 
     if (_partners.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.person_off, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            const Text(
-              'Maaf, tidak ada mitra yang\ntersedia saat ini.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                color: AppColors.textSecondary,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.person_off, size: 64, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              const Text(
+                'Tidak ada mitra yang tersedia\nuntuk layanan yang Anda pilih.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              const Text(
+                'Mitra harus online, terverifikasi, dan memiliki\nsemua keahlian yang sesuai pesanan Anda.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              OutlinedButton(
+                onPressed: _loadPartners,
+                child: const Text('Coba Lagi'),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -219,6 +295,23 @@ class _PartnerSelectPageState extends State<PartnerSelectPage> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 4),
+                      if (_distances.containsKey(partner.id))
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on, color: AppColors.primary, size: 14),
+                            const SizedBox(width: 4),
+                            Text(
+                              _locationService.formatDistance(_distances[partner.id]!),
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                color: AppColors.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),

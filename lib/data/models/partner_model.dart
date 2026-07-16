@@ -20,6 +20,8 @@ class PartnerModel extends Equatable {
   final String bankAccount;
   final bool workAgreementSigned;
   final String role;
+  final double? latitude;
+  final double? longitude;
   final DateTime? created;
   final DateTime? updated;
 
@@ -42,6 +44,8 @@ class PartnerModel extends Equatable {
     this.bankAccount = '',
     this.workAgreementSigned = false,
     this.role = 'mitra',
+    this.latitude,
+    this.longitude,
     this.created,
     this.updated,
   });
@@ -66,6 +70,8 @@ class PartnerModel extends Equatable {
       bankAccount: record.getStringValue('bank_account'),
       workAgreementSigned: record.getBoolValue('work_agreement_signed'),
       role: record.getStringValue('role', 'mitra'),
+      latitude: record.dataValue['latitude'] as double?,
+      longitude: record.dataValue['longitude'] as double?,
       created: DateTime.tryParse(record.created),
       updated: DateTime.tryParse(record.updated),
     );
@@ -110,6 +116,8 @@ class PartnerModel extends Equatable {
         bankAccount,
         workAgreementSigned,
         role,
+        latitude,
+        longitude,
         created,
         updated,
       ];

@@ -1,6 +1,7 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 import '../../core/pocketbase/pb.dart';
+import '../../core/exceptions/app_exception.dart';
 import '../models/partner_model.dart';
 
 class PartnerRepository {
@@ -9,8 +10,13 @@ class PartnerRepository {
     try {
       final record = await pb.collection('partners').getOne(partnerId);
       return PartnerModel.fromRecord(record);
+    } on ClientException catch (e) {
+      if (e.statusCode == 404) {
+        throw NotFoundException(message: 'Mitra tidak ditemukan.');
+      }
+      throw NetworkException(message: 'Gagal memuat profil mitra. Periksa koneksi internet.');
     } catch (e) {
-      throw Exception('Gagal memuat profil mitra: $e');
+      throw NetworkException(message: 'Gagal memuat profil mitra.');
     }
   }
 
@@ -87,8 +93,16 @@ class PartnerRepository {
       }
 
       return PartnerModel.fromRecord(record);
+    } on ClientException catch (e) {
+      if (e.response?.data['email'] != null) {
+        throw ValidationException(message: 'Email sudah terdaftar sebagai mitra.');
+      }
+      if (e.response?.data['phone'] != null) {
+        throw ValidationException(message: 'No HP sudah terdaftar sebagai mitra.');
+      }
+      throw ValidationException(message: 'Gagal mendaftar sebagai mitra. Periksa data Anda.');
     } catch (e) {
-      throw Exception('Gagal mendaftar sebagai mitra: $e');
+      throw NetworkException(message: 'Gagal mendaftar sebagai mitra. Periksa koneksi internet.');
     }
   }
 
@@ -101,19 +115,99 @@ class PartnerRepository {
       );
       return PartnerModel.fromRecord(record);
     } catch (e) {
-      throw Exception('Gagal memperbarui status online: $e');
+      throw NetworkException(message: 'Gagal memperbarui status online. Periksa koneksi internet.');
     }
   }
 
-  /// Fetch all available partners (online, verified, and active)
-  Future<List<PartnerModel>> getAvailablePartners() async {
+  /// Fetch available partners (online, verified, active) whose
+  /// [partner_skills] cover all [subcategoryIds] from the order.
+  /// Uses optimized filtering with PocketBase expand for better performance.
+  Future<List<PartnerModel>> getAvailablePartners({
+    List<String> subcategoryIds = const [],
+  }) async {
     try {
-      final records = await pb.collection('partners').getFullList(
-        filter: 'is_online = true && is_verified = true && is_active = true',
+      if (subcategoryIds.isEmpty) {
+        // If no skill filter, return all online/verified/active partners
+        final records = await pb.collection('partners').getFullList(
+          filter: 'is_online = true && is_verified = true && is_active = true',
+          sort: '-rating,-total_jobs',
+        );
+        return records.map((r) => PartnerModel.fromRecord(r)).toList();
+      }
+
+      // Build filter for partner_skills with all required subcategories
+      // Using a more efficient approach: get partners who have at least one skill,
+      // then filter for those who have ALL required skills
+      final skillFilter = subcategoryIds
+          .map((id) => 'subcategory_id = "$id"')
+          .join(' || ');
+
+      // Fetch partner_skills with expand to get partner details
+      final skillRecords = await pb.collection('partner_skills').getFullList(
+        filter: skillFilter,
+        expand: 'partner_id',
       );
-      return records.map((r) => PartnerModel.fromRecord(r)).toList();
+
+      // Group skills by partner and track their partner data
+      final skillsByPartner = <String, Set<String>>{};
+      final partnerDataMap = <String, RecordModel>{};
+      
+      for (final skill in skillRecords) {
+        final partnerId = skill.getStringValue('partner_id');
+        final subcategoryId = skill.getStringValue('subcategory_id');
+        
+        skillsByPartner
+            .putIfAbsent(partnerId, () => {})
+            .add(subcategoryId);
+        
+        // Cache partner data from expand
+        if (skill.expand['partner_id'] != null && 
+            skill.expand['partner_id'] is RecordModel) {
+          partnerDataMap[partnerId] = skill.expand['partner_id'] as RecordModel;
+        }
+      }
+
+      // Filter partners who have ALL required skills AND are online/verified/active
+      final requiredSkills = subcategoryIds.toSet();
+      final eligiblePartners = <PartnerModel>[];
+      
+      for (final entry in skillsByPartner.entries) {
+        final partnerId = entry.key;
+        final partnerSkills = entry.value;
+        
+        // Check if partner has all required skills
+        if (requiredSkills.every(partnerSkills.contains)) {
+          // Get partner data from cache or fetch if not cached
+          RecordModel? partnerRecord = partnerDataMap[partnerId];
+          if (partnerRecord == null) {
+            try {
+              partnerRecord = await pb.collection('partners').getOne(partnerId);
+            } catch (e) {
+              continue; // Skip if partner not found
+            }
+          }
+          
+          // Check if partner is online, verified, and active
+          if (partnerRecord != null &&
+              partnerRecord.getBoolValue('is_online') == true &&
+              partnerRecord.getBoolValue('is_verified') == true &&
+              partnerRecord.getBoolValue('is_active') == true) {
+            eligiblePartners.add(PartnerModel.fromRecord(partnerRecord));
+          }
+        }
+      }
+
+      // Sort by rating and total jobs
+      eligiblePartners.sort((a, b) {
+        if (a.rating != b.rating) {
+          return b.rating.compareTo(a.rating);
+        }
+        return b.totalJobs.compareTo(a.totalJobs);
+      });
+
+      return eligiblePartners;
     } catch (e) {
-      throw Exception('Gagal memuat mitra yang tersedia: $e');
+      throw NetworkException(message: 'Gagal memuat mitra yang tersedia. Periksa koneksi internet.');
     }
   }
 
