@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/pocketbase/pb.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/category_model.dart';
 import '../../../data/models/user_model.dart';
@@ -26,6 +28,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   late AnimationController _bannerAnimController;
   late Animation<double> _bannerAnimation;
+  late StreamSubscription _authSubscription;
 
   @override
   void initState() {
@@ -38,11 +41,22 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       parent: _bannerAnimController,
       curve: Curves.easeOut,
     );
+    
+    // Dengarkan perubahan state auth (misal: saat foto profil diupdate)
+    _authSubscription = pb.authStore.onChange.listen((event) {
+      if (mounted) {
+        setState(() {
+          _currentUser = _authRepo.getCurrentUser();
+        });
+      }
+    });
+
     _loadData();
   }
 
   @override
   void dispose() {
+    _authSubscription.cancel();
     _bannerAnimController.dispose();
     super.dispose();
   }
@@ -69,15 +83,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         setState(() {
           _isLoading = false;
           _hasError = true;
-          // Fallback mock categories for offline/dev mode
-          _categories = [
-            CategoryModel(id: 'cat_1', name: 'Home Cleaning', order: 1),
-            CategoryModel(id: 'cat_2', name: 'Laundry Assistance', order: 2),
-            CategoryModel(id: 'cat_3', name: 'Caregiver', order: 3),
-            CategoryModel(id: 'cat_4', name: 'Household Helper', order: 4),
-            CategoryModel(id: 'cat_5', name: 'Outdoor House Care', order: 5),
-            CategoryModel(id: 'cat_6', name: 'Home Maintenance', order: 6),
-          ];
+          _categories = []; // Hapus mock data untuk versi production
         });
         _bannerAnimController.forward();
       }
@@ -237,16 +243,28 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     ],
                   ),
                   // Avatar
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
-                    child: Text(
-                      firstName.substring(0, 1).toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
+                  GestureDetector(
+                    onTap: () {
+                      // Beralih ke tab profil (index 3) bisa dilakukan via go_router 
+                      // atau dikelola oleh MainPage. Untuk saat ini kita push ke /profile
+                      context.push('/profile');
+                    },
+                    child: CircleAvatar(
+                      radius: 22,
+                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                      backgroundImage: _currentUser?.avatar.isNotEmpty == true 
+                          ? NetworkImage(_currentUser!.avatar) 
+                          : null,
+                      child: _currentUser?.avatar.isEmpty ?? true
+                          ? Text(
+                              firstName.isNotEmpty ? firstName.substring(0, 1).toUpperCase() : '?',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            )
+                          : null,
                     ),
                   ),
                 ],
@@ -263,13 +281,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: GestureDetector(
         onTap: () {
-          // UI only for MVP - no backend search
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Fitur pencarian akan segera hadir!'),
-              duration: Duration(seconds: 2),
-            ),
-          );
+          if (_categories.isNotEmpty) {
+            showSearch(
+              context: context,
+              delegate: _CategorySearchDelegate(_categories),
+            );
+          }
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -306,23 +323,33 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             begin: const Offset(0, 0.15),
             end: Offset.zero,
           ).animate(_bannerAnimation),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1A5FA8), Color(0xFF2980B9)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.35),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+          child: GestureDetector(
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Promo otomatis diaplikasikan di halaman checkout!'),
+                  duration: Duration(seconds: 3),
+                  backgroundColor: AppColors.success,
                 ),
-              ],
-            ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1A5FA8), Color(0xFF2980B9)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
             child: Row(
               children: [
                 Expanded(
@@ -840,6 +867,77 @@ class _FeatureCardState extends State<_FeatureCard>
           ),
         ),
       ),
+    );
+  }
+}
+
+// ────────────────────────────────────────
+// Search Delegate untuk Kategori Layanan
+// ────────────────────────────────────────
+class _CategorySearchDelegate extends SearchDelegate<String?> {
+  final List<CategoryModel> categories;
+
+  _CategorySearchDelegate(this.categories);
+
+  @override
+  String get searchFieldLabel => 'Cari layanan...';
+
+  @override
+  List<Widget>? buildActions(BuildContext context) {
+    return [
+      if (query.isNotEmpty)
+        IconButton(
+          icon: const Icon(Icons.clear_rounded),
+          onPressed: () {
+            query = '';
+            showSuggestions(context);
+          },
+        ),
+    ];
+  }
+
+  @override
+  Widget? buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back_rounded),
+      onPressed: () => close(context, null),
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    return _buildList();
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    return _buildList();
+  }
+
+  Widget _buildList() {
+    final results = categories.where((c) {
+      return c.name.toLowerCase().contains(query.toLowerCase());
+    }).toList();
+
+    if (results.isEmpty) {
+      return const Center(
+        child: Text('Layanan tidak ditemukan'),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: results.length,
+      itemBuilder: (context, index) {
+        final category = results[index];
+        return ListTile(
+          leading: const Icon(Icons.cleaning_services_rounded, color: AppColors.primary),
+          title: Text(category.name),
+          onTap: () {
+            close(context, null);
+            context.push('/order/${category.id}');
+          },
+        );
+      },
     );
   }
 }

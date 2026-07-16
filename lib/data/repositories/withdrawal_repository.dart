@@ -127,7 +127,9 @@ class WithdrawalRepository {
         filter: 'status = "pending"',
         sort: '-created',
       );
-      return records.items.map((r) => WithdrawalModel.fromRecord(r)).toList();
+     return records
+    .map((r) => WithdrawalModel.fromRecord(r))
+    .toList();
     } catch (e) {
       throw NetworkException(message: 'Gagal memuat penarikan pending. Periksa koneksi internet.');
     }
@@ -140,7 +142,9 @@ class WithdrawalRepository {
         filter: 'status = "approved"',
         sort: '-created',
       );
-      return records.items.map((r) => WithdrawalModel.fromRecord(r)).toList();
+      return records
+    .map((r) => WithdrawalModel.fromRecord(r))
+    .toList();
     } catch (e) {
       throw NetworkException(message: 'Gagal memuat penarikan disetujui. Periksa koneksi internet.');
     }

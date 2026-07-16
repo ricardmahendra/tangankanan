@@ -70,10 +70,10 @@ class PartnerModel extends Equatable {
       bankAccount: record.getStringValue('bank_account'),
       workAgreementSigned: record.getBoolValue('work_agreement_signed'),
       role: record.getStringValue('role', 'mitra'),
-      latitude: record.dataValue['latitude'] as double?,
-      longitude: record.dataValue['longitude'] as double?,
-      created: DateTime.tryParse(record.created),
-      updated: DateTime.tryParse(record.updated),
+      latitude: record.getDoubleValue('latitude'),
+      longitude: record.getDoubleValue('longitude'),
+      created: DateTime.tryParse(record.get<String>('created')),
+      updated: DateTime.tryParse(record.get<String>('updated')),
     );
   }
 

@@ -20,7 +20,7 @@ class AuthRepository {
         // If users fails, try partners collection
         final authRecord = await pb.collection('partners').authWithPassword(identity, password);
         return PartnerModel.fromRecord(authRecord.record);
-      } on ClientException catch (e) {
+      } on ClientException catch (_) {
         throw AuthException(
           message: 'Email/No HP atau password salah. Silakan coba lagi.',
         );
@@ -74,10 +74,10 @@ class AuthRepository {
       
       return UserModel.fromRecord(record);
     } on ClientException catch (e) {
-      if (e.response?.data['email'] != null) {
+      if (e.response['email'] != null) {
         throw ValidationException(message: 'Email sudah terdaftar.');
       }
-      if (e.response?.data['phone'] != null) {
+      if (e.response['phone'] != null) {
         throw ValidationException(message: 'No HP sudah terdaftar.');
       }
       throw ValidationException(message: 'Gagal mendaftar. Periksa data Anda.');

@@ -94,10 +94,10 @@ class PartnerRepository {
 
       return PartnerModel.fromRecord(record);
     } on ClientException catch (e) {
-      if (e.response?.data['email'] != null) {
+      if (e.response['email'] != null) {
         throw ValidationException(message: 'Email sudah terdaftar sebagai mitra.');
       }
-      if (e.response?.data['phone'] != null) {
+      if (e.response['phone'] != null) {
         throw ValidationException(message: 'No HP sudah terdaftar sebagai mitra.');
       }
       throw ValidationException(message: 'Gagal mendaftar sebagai mitra. Periksa data Anda.');
@@ -161,9 +161,9 @@ class PartnerRepository {
             .add(subcategoryId);
         
         // Cache partner data from expand
-        if (skill.expand['partner_id'] != null && 
-            skill.expand['partner_id'] is RecordModel) {
-          partnerDataMap[partnerId] = skill.expand['partner_id'] as RecordModel;
+        final expandedPartner = skill.get<RecordModel?>('expand.partner_id');
+        if (expandedPartner != null) {
+          partnerDataMap[partnerId] = expandedPartner;
         }
       }
 
@@ -188,8 +188,7 @@ class PartnerRepository {
           }
           
           // Check if partner is online, verified, and active
-          if (partnerRecord != null &&
-              partnerRecord.getBoolValue('is_online') == true &&
+          if (partnerRecord.getBoolValue('is_online') == true &&
               partnerRecord.getBoolValue('is_verified') == true &&
               partnerRecord.getBoolValue('is_active') == true) {
             eligiblePartners.add(PartnerModel.fromRecord(partnerRecord));

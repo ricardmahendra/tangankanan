@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -38,7 +40,9 @@ class LocationService {
 
       // Get current position
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
 
       return position;
@@ -61,11 +65,14 @@ class LocationService {
     final double dLat = _toRadians(endLat - startLat);
     final double dLng = _toRadians(endLng - startLng);
 
-    final double a = (dLat / 2).sin() * (dLat / 2).sin() +
-        (dLat / 2).cos() * (endLat / 2).cos() *
-        (dLng / 2).sin() * (dLng / 2).sin();
+   final double a =
+    math.sin(dLat / 2) * math.sin(dLat / 2) +
+    math.cos(_toRadians(startLat)) *
+        math.cos(_toRadians(endLat)) *
+        math.sin(dLng / 2) *
+        math.sin(dLng / 2);
 
-    final double c = 2 * (a.sqrt()).asin();
+   final double c = 2 * math.asin(math.sqrt(a));
 
     return earthRadius * c;
   }
