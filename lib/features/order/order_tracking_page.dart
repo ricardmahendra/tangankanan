@@ -99,7 +99,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Batalkan Pesanan?'),
-        content: const Text('Apakah Anda yakin ingin membatalkan pesanan ini? Saldo Anda akan dikembalikan.'),
+        content: const Text('Apakah Anda yakin ingin membatalkan pesanan ini? Dana yang sudah dibayarkan akan dikembalikan ke saldo/rekening Anda dalam waktu maksimal 2x24 jam.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -217,10 +217,10 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
               ),
               child: const Column(
                 children: [
-                  Icon(Icons.hourglass_top, color: AppColors.warning, size: 40),
+                  Icon(Icons.search_rounded, color: AppColors.warning, size: 40),
                   SizedBox(height: 8),
                   Text(
-                    'Menunggu Konfirmasi Mitra',
+                    'Mencari Mitra Terbaik...',
                     style: TextStyle(
                       fontFamily: 'Poppins',
                       fontWeight: FontWeight.bold,
@@ -230,8 +230,8 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'Mitra memiliki waktu 10 menit untuk menerima pesanan Anda. '
-                    'Halaman ini akan diperbarui otomatis setelah mitra merespons.',
+                    'Sistem sedang mencarikan mitra yang tersedia di sekitar Anda. '
+                    'Halaman ini akan diperbarui otomatis setelah mendapatkan mitra.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'Poppins',
@@ -419,7 +419,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
                   ),
                 ),
                 child: const Text(
-                  'Batalkan Pesanan',
+                  'Batalkan & Refund',
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontWeight: FontWeight.w600,

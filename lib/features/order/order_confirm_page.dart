@@ -103,7 +103,7 @@ class _OrderConfirmPageState extends State<OrderConfirmPage> {
         final order = await _repo.createOrder(
           orderCode: orderCode,
           userId: userRecord.id,
-          partnerId: widget.flowData.selectedPartner!.id,
+          partnerId: '', // Partner will be assigned when a Mitra accepts
           categoryId: widget.flowData.category.id,
           address: widget.flowData.address,
           scheduledAt: widget.flowData.scheduledAt!,
@@ -218,61 +218,7 @@ class _OrderConfirmPageState extends State<OrderConfirmPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Mitra Section
-          const Text(
-            'Mitra Terpilih',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: AppColors.primaryLight,
-                  child: const Icon(Icons.person, color: AppColors.primary),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.flowData.selectedPartner!.name,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.star, color: AppColors.warning, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            widget.flowData.selectedPartner!.rating.toStringAsFixed(1),
-                            style: const TextStyle(fontFamily: 'Poppins', fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
 
-          const SizedBox(height: 24),
 
           // Detail Layanan Section
           const Text(

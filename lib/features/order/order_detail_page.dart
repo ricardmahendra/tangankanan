@@ -124,7 +124,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         scheduledAt: _scheduledAt,
       );
 
-      context.push('/order/${widget.flowData.category.id}/partners', extra: updatedData);
+      context.push('/order/confirm', extra: updatedData);
     } else if (_scheduledAt == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -439,7 +439,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     ),
                   ),
                   child: const Text(
-                    'Lanjut Pilih Mitra',
+                    'Lanjut ke Pembayaran',
                     style: TextStyle(
                       fontFamily: 'Poppins',
                       fontWeight: FontWeight.w600,

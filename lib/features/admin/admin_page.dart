@@ -7,6 +7,9 @@ import '../../data/models/withdrawal_model.dart';
 import '../../data/models/order_model.dart';
 import '../../data/repositories/withdrawal_repository.dart';
 import '../../data/repositories/order_repository.dart';
+import 'admin_user_management_page.dart';
+import 'admin_content_management_page.dart';
+import 'admin_cs_page.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -128,6 +131,9 @@ class _AdminPageState extends State<AdminPage> {
                 _buildVerificationTab(),
                 _buildWithdrawalTab(),
                 _buildOrdersTab(),
+                const AdminUserManagementPage(),
+                const AdminContentManagementPage(),
+                const AdminCSPage(),
               ],
             ),
       bottomNavigationBar: BottomNavigationBar(
@@ -160,6 +166,21 @@ class _AdminPageState extends State<AdminPage> {
             icon: Icon(Icons.list_alt_outlined),
             activeIcon: Icon(Icons.list_alt),
             label: 'Pesanan',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people_outline),
+            activeIcon: Icon(Icons.people),
+            label: 'Akun',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.category_outlined),
+            activeIcon: Icon(Icons.category),
+            label: 'Konten',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.headset_mic_outlined),
+            activeIcon: Icon(Icons.headset_mic),
+            label: 'CS',
           ),
         ],
       ),
@@ -273,6 +294,33 @@ class _AdminPageState extends State<AdminPage> {
               AppColors.primary,
               () {
                 setState(() => _currentIndex = 3);
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildQuickAction(
+              'Manajemen Akun (User/Mitra)',
+              Icons.people,
+              AppColors.primaryMid,
+              () {
+                setState(() => _currentIndex = 4);
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildQuickAction(
+              'Manajemen Konten (Kategori)',
+              Icons.category,
+              AppColors.primary,
+              () {
+                setState(() => _currentIndex = 5);
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildQuickAction(
+              'Customer Service',
+              Icons.headset_mic,
+              AppColors.success,
+              () {
+                setState(() => _currentIndex = 6);
               },
             ),
           ],

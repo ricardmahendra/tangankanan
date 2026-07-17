@@ -4,12 +4,12 @@ import '../../core/exceptions/app_exception.dart';
 import '../models/order_model.dart';
 
 class OrderRepository {
-  /// Fetch incoming jobs for a partner (status is pending)
-  Future<List<OrderModel>> getIncomingOrders(String partnerId) async {
+  /// Fetch incoming broadcasted jobs (status is pending and partner_id is empty)
+  Future<List<OrderModel>> getIncomingOrders() async {
     try {
       final records = await pb.collection('orders').getList(
-        filter: 'partner_id = "$partnerId" && status = "pending"',
-        sort: '-created',
+        filter: 'partner_id = "" && status = "pending"',
+        sort: 'created', // Get the oldest pending orders first
         expand: 'user_id,order_items(order_id)',
       );
       return records.items.map((r) => OrderModel.fromRecord(r)).toList();
@@ -157,6 +157,14 @@ class OrderRepository {
     String? cancelReason,
   }) async {
     try {
+      // Get the old order state first to check if it was confirmed before cancelling
+      OrderModel? oldOrder;
+      if (newStatus == 'cancelled' && cancelledBy == 'partner') {
+        try {
+          oldOrder = await getOrderDetail(orderId);
+        } catch (_) {}
+      }
+
       final body = <String, dynamic>{
         'status': newStatus,
       };
@@ -177,7 +185,6 @@ class OrderRepository {
         body: body,
         expand: 'user_id,partner_id,order_items(order_id)',
       );
-
       // Handle balance updates locally if backend hook isn't active
       // In production, this should run in a PocketBase backend hook/transaction.
       if (newStatus == 'completed') {
@@ -197,6 +204,21 @@ class OrderRepository {
           }
         }
       }
+      // Handle penalty for partner cancellation
+      if (newStatus == 'cancelled' && cancelledBy == 'partner' && oldOrder != null && oldOrder.status == 'confirmed') {
+        final partnerId = oldOrder.partnerId;
+        if (partnerId.isNotEmpty) {
+          try {
+            final partnerRecord = await pb.collection('partners').getOne(partnerId);
+            final currentBalance = partnerRecord.getIntValue('balance');
+            await pb.collection('partners').update(partnerId, body: {
+              'balance': currentBalance - 10000,
+            });
+          } catch (penaltyErr) {
+            print('Gagal menerapkan penalti ke mitra secara lokal: $penaltyErr');
+          }
+        }
+      }
 
       return OrderModel.fromRecord(record);
     } catch (e) {
@@ -204,14 +226,34 @@ class OrderRepository {
     }
   }
 
+  /// Claim a pending order (assign to a partner)
+  Future<OrderModel> claimOrder(String orderId, String partnerId) async {
+    try {
+      final record = await pb.collection('orders').update(
+        orderId,
+        body: {
+          'partner_id': partnerId,
+          'status': 'confirmed',
+        },
+        expand: 'user_id,partner_id,order_items(order_id)',
+      );
+      return OrderModel.fromRecord(record);
+    } catch (e) {
+      throw NetworkException(message: 'Pesanan sudah diambil oleh mitra lain atau terjadi kesalahan jaringan.');
+    }
+  }
+
   /// Realtime subscription to partner's orders
   Future<void> subscribeToOrders(String partnerId, Function(RecordSubscriptionEvent) onEvent) async {
     try {
       await pb.collection('orders').subscribe('*', (e) {
-        // Filter events for this partner
+        // Filter events for this partner or broadcasted (empty partner_id)
         final record = e.record;
-        if (record != null && record.getStringValue('partner_id') == partnerId) {
-          onEvent(e);
+        if (record != null) {
+          final pId = record.getStringValue('partner_id');
+          if (pId == partnerId || pId.isEmpty) {
+            onEvent(e);
+          }
         }
       });
     } catch (e) {

@@ -69,7 +69,7 @@ class _MitraJobTabState extends State<MitraJobTab> {
   Future<void> _loadJobs() async {
     setState(() => _isLoading = true);
     try {
-      _incomingOrders = await _orderRepo.getIncomingOrders(_partnerId);
+      _incomingOrders = await _orderRepo.getIncomingOrders();
       _activeOrders = await _orderRepo.getActiveOrders(_partnerId);
       _historyOrders = await _orderRepo.getJobHistory(_partnerId);
       _initCountdowns();
@@ -215,7 +215,7 @@ class _MitraJobTabState extends State<MitraJobTab> {
   Future<void> _acceptOrder(String orderId) async {
     setState(() => _isLoading = true);
     try {
-      await _orderRepo.updateOrderStatus(orderId, 'confirmed');
+      await _orderRepo.claimOrder(orderId, _partnerId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pesanan berhasil diterima!'), backgroundColor: AppColors.success),

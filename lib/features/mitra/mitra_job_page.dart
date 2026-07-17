@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../data/repositories/order_repository.dart';
 import '../../data/models/order_model.dart';
 import '../../data/models/order_item_model.dart';
+import '../../core/location/location_service.dart';
 
 class MitraJobPage extends StatefulWidget {
   final String orderId;
@@ -89,6 +90,65 @@ class _MitraJobPageState extends State<MitraJobPage> {
   }
 
   Future<void> _updateStatus(String nextStatus) async {
+    if (_order == null) return;
+
+    // 1. Validasi Jadwal (on_the_way)
+    if (nextStatus == 'on_the_way') {
+      final now = DateTime.now();
+      // Boleh berangkat maksimal 2 jam sebelumnya
+      final earliestDeparture = _order!.scheduledAt.subtract(const Duration(hours: 2));
+      if (now.isBefore(earliestDeparture)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Terlalu cepat! Anda hanya bisa berangkat maksimal 2 jam sebelum jadwal.'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+        return;
+      }
+    }
+
+    // 2. Validasi Tiba (arrived)
+    if (nextStatus == 'arrived') {
+      setState(() => _isLoading = true);
+      try {
+        final locationService = LocationService();
+        final hasPermission = await locationService.hasPermission() || await locationService.requestPermission();
+        if (hasPermission) {
+          final position = await locationService.getCurrentLocation();
+          if (position != null) {
+            // Simulasi: Order MVP saat ini tidak punya GPS koordinat di alamat,
+            // Kita bypass dengan validasi radius if order.latitude != 0
+            if (_order!.latitude != 0.0 && _order!.longitude != 0.0) {
+              final distance = locationService.calculateDistance(
+                position.latitude,
+                position.longitude,
+                _order!.latitude,
+                _order!.longitude,
+              );
+              // Validasi radius (misal 500 meter = 0.5 km)
+              if (distance > 0.5) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Anda belum berada di lokasi tujuan. (Jarak: ${locationService.formatDistance(distance)})'),
+                      backgroundColor: AppColors.danger,
+                    ),
+                  );
+                  setState(() => _isLoading = false);
+                }
+                return;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        print('Gagal memvalidasi lokasi: $e');
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
+
     setState(() => _isLoading = true);
     try {
       final updated = await _orderRepo.updateOrderStatus(widget.orderId, nextStatus);
