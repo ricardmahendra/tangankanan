@@ -66,12 +66,9 @@ class _LoginPageState extends State<LoginPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'TanganKanan',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                          color: Theme.of(context).primaryColor,
-                        ),
+                  Image.asset(
+                    'assets/images/logo.jpeg',
+                    height: 120,
                   ),
                   const SizedBox(height: 8),
                   Text(
