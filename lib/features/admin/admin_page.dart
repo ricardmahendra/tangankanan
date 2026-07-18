@@ -122,20 +122,22 @@ class _AdminPageState extends State<AdminPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : IndexedStack(
-              index: _currentIndex,
-              children: [
-                _buildDashboardTab(),
-                _buildVerificationTab(),
-                _buildWithdrawalTab(),
-                _buildOrdersTab(),
-                const AdminUserManagementPage(),
-                const AdminContentManagementPage(),
-                const AdminCSPage(),
-              ],
-            ),
+      body: SafeArea(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : IndexedStack(
+                index: _currentIndex,
+                children: [
+                  _buildDashboardTab(),
+                  _buildVerificationTab(),
+                  _buildWithdrawalTab(),
+                  _buildOrdersTab(),
+                  const AdminUserManagementPage(),
+                  const AdminContentManagementPage(),
+                  const AdminCSPage(),
+                ],
+              ),
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
@@ -413,7 +415,14 @@ class _AdminPageState extends State<AdminPage> {
     return RefreshIndicator(
       onRefresh: _loadPendingPartners,
       child: _pendingPartners.isEmpty
-          ? _buildEmptyState('Tidak ada mitra yang perlu diverifikasi')
+          ? ListView(
+              children: [
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  child: _buildEmptyState('Tidak ada mitra yang perlu diverifikasi'),
+                ),
+              ],
+            )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _pendingPartners.length,
@@ -589,6 +598,7 @@ class _AdminPageState extends State<AdminPage> {
     return DefaultTabController(
       length: 2,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const TabBar(
             tabs: [
@@ -598,7 +608,7 @@ class _AdminPageState extends State<AdminPage> {
             labelColor: AppColors.primary,
             unselectedLabelColor: Colors.grey,
           ),
-          Expanded(
+          Flexible(
             child: TabBarView(
               children: [
                 _buildPendingWithdrawalsList(),
@@ -615,7 +625,14 @@ class _AdminPageState extends State<AdminPage> {
     return RefreshIndicator(
       onRefresh: _loadPendingWithdrawals,
       child: _pendingWithdrawalsList.isEmpty
-          ? _buildEmptyState('Tidak ada penarikan yang pending')
+          ? ListView(
+              children: [
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.6,
+                  child: _buildEmptyState('Tidak ada penarikan yang pending'),
+                ),
+              ],
+            )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _pendingWithdrawalsList.length,
@@ -631,7 +648,14 @@ class _AdminPageState extends State<AdminPage> {
     return RefreshIndicator(
       onRefresh: _loadPendingWithdrawals,
       child: _approvedWithdrawalsList.isEmpty
-          ? _buildEmptyState('Tidak ada penarikan yang disetujui')
+          ? ListView(
+              children: [
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.6,
+                  child: _buildEmptyState('Tidak ada penarikan yang disetujui'),
+                ),
+              ],
+            )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _approvedWithdrawalsList.length,
@@ -849,7 +873,14 @@ class _AdminPageState extends State<AdminPage> {
     return RefreshIndicator(
       onRefresh: _loadRecentOrders,
       child: _recentOrders.isEmpty
-          ? _buildEmptyState('Tidak ada pesanan terbaru')
+          ? ListView(
+              children: [
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  child: _buildEmptyState('Tidak ada pesanan terbaru'),
+                ),
+              ],
+            )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _recentOrders.length,
